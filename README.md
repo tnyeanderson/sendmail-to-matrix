@@ -31,7 +31,7 @@ pip install "matrix-nio[e2e]"
 Then copy `sendmail-to-matrix.py` somewhere on your machine.
 ```bash
 # Here, we use the /app folder for example
-git clone https://github.com/tnyeanderson/sendmail-to-matrix
+git clone https://github.com/tnyeanderson/sendmail-to-matrix.git
 cd sendmail-to-matrix
 cp sendmail-to-matrix.py /app/sendmail-to-matrix.py
 ```
@@ -98,4 +98,4 @@ You're done! Direct any administration-related emails (Proxmox notifications, sy
 
 ## Caveats
 
-- HTML tags are removed from the script if present (and not malformed... looking at you Proxmox). Multipart emails will prefer `text/plain`.
+- HTML tags are removed from the message body if present (and not malformed... looking at you Proxmox). Multipart emails will prefer `text/plain`.
