@@ -2,11 +2,10 @@
 
 import asyncio
 import json
-import os
 import sys
 import xml.etree.ElementTree as ET
 import email.message, email.policy
-from nio import AsyncClient, LoginResponse
+from nio import AsyncClient
 
 """CONFIG_FILE format:
 {
