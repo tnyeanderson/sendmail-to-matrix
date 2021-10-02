@@ -72,6 +72,8 @@ Finally, add the following line to `/etc/aliases` to pipe emails sent to `myuser
 myuser: "|/app/sendmail-to-matrix.py -f /app/config.json"
 ```
 
+> Note: The alias can also be added to the user's `~/.forward` file.
+
 ## Testing
 
 To test that emails get forwarded properly, use `sendmail` (press `CTRL+D` after you have finished typing your message):
