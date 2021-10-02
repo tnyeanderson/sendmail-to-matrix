@@ -79,16 +79,13 @@ To test that emails get forwarded properly, use `sendmail` (press `CTRL+D` after
 $ sendmail myuser@localhost
 > Subject: THIS IS NOT A TEST
 > A song by Bikini Kill
-
 ```
 
 You should receive the following message in your Matrix room (based on the example configuration above):
 ```
 Sent from my homelab
 Subject: THIS IS NOT A TEST
-
 A song by Bikini Kill
-
 ```
 
 Alternatively, you can test with a file that contains an email in standard Linux mailbox form.
