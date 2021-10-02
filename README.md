@@ -39,35 +39,37 @@ cp sendmail-to-matrix.py /app/sendmail-to-matrix.py
 
 ## Configuration
 
-You must add a credential file that will be used by the script.
+You must add a config file that will be used by the script, or supply a `server`, `token`, and `room` with command-line parameters.
+
+Values from a config file are overwritten by command-line parameters. See `sendmail-to-matrix.py -h` for help.
 
 First, obtain an access token:
 ```bash
 curl -XPOST -d '{"type":"m.login.password", "user":"example", "password":"wordpass"}' "https://homeserver:8448/_matrix/client/r0/login"
 ```
 
-Then, copy `credentials.json.example` from this repo and edit it for your needs:
+Then, copy `config.json.example` from this repo and edit it for your needs:
 ```bash
-cp credentials.json.example /app/credentials.json
+cp config.json.example /app/config.json
 
 # Don't forget to edit the file!
 ```
 
-> NOTE: At the moment, you must place this file at `/app/credentials.json`. Soon this will be a shell parameter for the script...
+> Note: This example places the `config.json` file in the `/app` folder. You can place it anywhere the script can read from as long as you specify it using `-f /path/to/config.json`
 
-Your credentials file might look like this:
+Your config file might look like this:
 ```json
 {
-  "homeserver": "https://matrix.org",
-  "access_token": "<your_access_token>",
-  "room_id": "!myroomid:matrix.org",
-  "preface": "SENT FROM MY HOMELAB"
+  "server": "https://matrix.org",
+  "token": "<your_access_token>",
+  "room": "!myroomid:matrix.org",
+  "preface": "Sent from my homelab"
 }
 ```
 
 Finally, add the following line to `/etc/aliases` to pipe emails sent to `myuser@localhost` to the script:
 ```bash
-myuser: "|/app/sendmail-to-matrix.py"
+myuser: "|/app/sendmail-to-matrix.py -f /app/config.json"
 ```
 
 ## Testing
@@ -77,15 +79,13 @@ To test that emails get forwarded properly, use `sendmail` (press `CTRL+D` after
 $ sendmail myuser@localhost
 > Subject: THIS IS NOT A TEST
 > A song by Bikini Kill
-
 ```
 
-Since subject lines are ignored, you should receive the following message in your Matrix room (based on the example configuration above):
+You should receive the following message in your Matrix room (based on the example configuration above):
 ```
-SENT FROM MY HOMELAB
-
+Sent from my homelab
+Subject: THIS IS NOT A TEST
 A song by Bikini Kill
-
 ```
 
 Alternatively, you can test with a file that contains an email in standard Linux mailbox form.
