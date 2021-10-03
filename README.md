@@ -69,7 +69,7 @@ Your config file might look like this:
 
 Finally, add the following line to `/etc/aliases` to pipe emails sent to `myuser@localhost` to the script:
 ```bash
-myuser: "|/app/sendmail-to-matrix.py -f /app/config.json"
+myuser: "|python3 /app/sendmail-to-matrix.py -f /app/config.json"
 ```
 
 > Note: The alias can also be added to the user's `~/.forward` file.
