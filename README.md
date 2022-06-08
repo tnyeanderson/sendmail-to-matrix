@@ -23,7 +23,7 @@ Please install these dependencies. For instance, on Debian/Ubuntu:
 sudo apt install python3 python3-venv python3-pip
 
 # Install matrix-nio with end-to-end encryption support
-# E2EE requires libolm-dev
+# E2EE requires libolm-dev version 3 or higher!
 sudo apt install libolm-dev
 pip install "matrix-nio[e2e]"
 ```
@@ -67,12 +67,17 @@ Your config file might look like this:
 }
 ```
 
-Finally, add the following line to `/etc/aliases` to pipe emails sent to `myuser@localhost` to the script:
+Add the following line to `/etc/aliases` to pipe emails sent to `myuser@localhost` to the script:
 ```bash
 myuser: "|python3 /app/sendmail-to-matrix.py -f /app/config.json"
 ```
 
 > Note: The alias can also be added to the user's `~/.forward` file.
+
+Reload your aliases
+```bash
+newaliases
+```
 
 ## Testing
 
