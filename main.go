@@ -125,25 +125,39 @@ func validateConfigOrDie() {
 	}
 }
 
+func buildPreface() (p string) {
+	p = config["preface"]
+	if p != "" {
+		p = p + "\n"
+	}
+	return
+}
+
+func buildSubject(m *mail.Message) (s string) {
+	s = m.Header.Get("Subject")
+	if s != "" {
+		s = "Subject: " + s + "\n"
+	}
+	return
+}
+
+func buildBody(m *mail.Message) string {
+	b, err := io.ReadAll(m.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(b[:])
+}
+
 func buildMessage(email string) (message string) {
 	r := strings.NewReader(email)
 	m, err := mail.ReadMessage(r)
 	if err != nil {
 		log.Fatal(err)
 	}
-	preface := config["preface"]
-	if preface != "" {
-		message += preface + "\n"
-	}
-	subject := m.Header.Get("Subject")
-	if subject != "" {
-		message += "Subject: " + subject + "\n"
-	}
-	body, err := io.ReadAll(m.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-	message += string(body[:])
+	message += buildPreface()
+	message += buildSubject(m)
+	message += buildBody(m)
 	return
 }
 
