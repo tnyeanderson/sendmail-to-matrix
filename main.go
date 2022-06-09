@@ -177,7 +177,19 @@ func getTransactionId() string {
 	return s
 }
 
-func sendMessage(message string) {
+func getUrl(server string, room string) string {
+	urlFmt := "%s/_matrix/client/v3/rooms/%s/send/m.room.message/%s"
+	url := fmt.Sprintf(urlFmt, server, room, getTransactionId())
+	return url
+}
+
+func addAccessToken(req *http.Request, token string) {
+	query := req.URL.Query()
+	query.Set("access_token", token)
+	req.URL.RawQuery = query.Encode()
+}
+
+func getRequestBody(message string) *bytes.Buffer {
 	reqBody, err := json.Marshal(MatrixRequestBody{
 		Body:    message,
 		Msgtype: "m.text",
@@ -185,15 +197,17 @@ func sendMessage(message string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	urlFmt := "%s/_matrix/client/v3/rooms/%s/send/m.room.message/%s"
-	url := fmt.Sprintf(urlFmt, config["server"], config["room"], getTransactionId())
-	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(reqBody))
+	return bytes.NewBuffer(reqBody)
+}
+
+func sendMessage(message string) {
+	url := getUrl(config["server"], config["room"])
+	body := getRequestBody(message)
+	req, err := http.NewRequest(http.MethodPut, url, body)
 	if err != nil {
 		log.Fatal(err)
 	}
-	query := req.URL.Query()
-	query.Set("access_token", config["token"])
-	req.URL.RawQuery = query.Encode()
+	addAccessToken(req, config["token"])
 	sendHttpRequest(req)
 }
 
