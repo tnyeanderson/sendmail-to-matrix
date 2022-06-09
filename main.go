@@ -53,7 +53,9 @@ type MatrixRequestBody struct {
 	Msgtype string `json:"msgtype"`
 }
 
-var config map[string]string
+type Config map[string]string
+
+var config Config
 
 func parseFlags() {
 	// Parse the flags
@@ -73,7 +75,7 @@ func parseFlags() {
 }
 
 func getConfig() {
-	config = make(map[string]string)
+	config = make(Config)
 
 	// Parse command line arguments. These override config file values.
 	// We need it parsed before for the --config-file flag
@@ -84,9 +86,8 @@ func getConfig() {
 }
 
 func parseConfigFile() {
-	var confFile map[string]string
+	var confFile Config
 
-	// No config file set
 	if config["configFile"] == "" {
 		return
 	}
@@ -220,18 +221,10 @@ func sendHttpRequest(req *http.Request) {
 }
 
 func main() {
-	// Custom usage message because flag kind of sucks
 	flag.Usage = printUsage
-
-	// Read config file if present, otherwise use flags
 	getConfig()
-
-	// Validate that required parameters are present
 	validateConfigOrDie()
-
 	email := getEmailFromStdin()
-
 	message := buildMessage(email)
-
 	sendMessage(message)
 }
