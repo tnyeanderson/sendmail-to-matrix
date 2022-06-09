@@ -24,25 +24,7 @@ Take an email message via STDIN and forward it to a Matrix room
 
 USAGE:
 
-  sendmail-to-matrix [-h] [-f CONFIG_FILE] [-s SERVER] [-t TOKEN] [-r ROOM] [-p PREFACE]
-
-OPTIONS:
-
-  -h, --help            show this help message and exit
-
-  -f CONFIG_FILE, --config-file CONFIG_FILE
-                        Path to config file
-
-  -s SERVER, --server SERVER
-                        The matrix homeserver url
-
-  -t TOKEN, --token TOKEN
-                        Matrix account access token
-
-  -r ROOM, --room ROOM  The matrix Room ID
-
-  -p PREFACE, --preface PREFACE
-                        Preface the matrix message with arbitrary text (optional)
+  sendmail-to-matrix [OPTIONS...]
 
 CONFIGURATION:
 
@@ -56,10 +38,14 @@ CONFIGURATION:
     "preface": "Preface to message"
   }
 
+OPTIONS:
+
 `
 
 var printUsage = func() {
-	fmt.Print(usage)
+	fmt.Fprint(flag.CommandLine.Output(), usage)
+	flag.PrintDefaults()
+	fmt.Fprint(flag.CommandLine.Output(), "\n")
 }
 
 type MatrixRequestBody struct {
@@ -67,41 +53,28 @@ type MatrixRequestBody struct {
 	Msgtype string `json:"msgtype"`
 }
 
-type Config struct {
-	configFile string
-	server     string
-	token      string
-	room       string
-	preface    string
-}
-
-var config Config
+var config map[string]string
 
 func parseFlags() {
-	// -f, --config-file
-	flag.StringVar(&config.configFile, "f", "", "")
-	flag.StringVar(&config.configFile, "config-file", "", "")
-
-	// -s, --server
-	flag.StringVar(&config.server, "s", "", "")
-	flag.StringVar(&config.server, "server", "", "")
-
-	// -t, --token
-	flag.StringVar(&config.token, "t", "", "")
-	flag.StringVar(&config.token, "token", "", "")
-
-	// -r, --room
-	flag.StringVar(&config.room, "r", "", "")
-	flag.StringVar(&config.room, "room", "", "")
-
-	// -p, --preface
-	flag.StringVar(&config.preface, "p", "", "")
-	flag.StringVar(&config.preface, "preface", "", "")
-
+	// Parse the flags
+	configFile := flag.String("config-file", "", "Path to config file")
+	server := flag.String("server", "", "Matrix homeserver url")
+	token := flag.String("token", "", "Matrix account access token")
+	room := flag.String("room", "", "Matrix Room ID")
+	preface := flag.String("preface", "", "Preface the matrix message with arbitrary text (optional)")
 	flag.Parse()
+
+	// Put them in the config
+	config["configFile"] = *configFile
+	config["server"] = *server
+	config["token"] = *token
+	config["room"] = *room
+	config["preface"] = *preface
 }
 
 func getConfig() {
+	config = make(map[string]string)
+
 	// Parse command line arguments. These override config file values.
 	// We need it parsed before for the --config-file flag
 	parseFlags()
@@ -111,50 +84,41 @@ func getConfig() {
 }
 
 func parseConfigFile() {
-	var jsonConfig map[string]string
+	var confFile map[string]string
 
 	// No config file set
-	if config.configFile == "" {
+	if config["configFile"] == "" {
 		return
 	}
 
 	// Read config file
-	content, err := ioutil.ReadFile(config.configFile)
+	content, err := ioutil.ReadFile(config["configFile"])
 	if err != nil {
 		log.Fatal("Error when opening file: ", err)
 	}
 
-	// Now let's unmarshall the data into `payload`
-	err = json.Unmarshal(content, &jsonConfig)
+	// Now unmarshall the data into `payload`
+	err = json.Unmarshal(content, &confFile)
 	if err != nil {
 		log.Fatal("Error during Unmarshal(): ", err)
 	}
 
 	// Set the values only if they weren't already set by flags
-	if config.server == "" {
-		config.server = jsonConfig["server"]
-	}
-	if config.token == "" {
-		config.token = jsonConfig["token"]
-	}
-	if config.room == "" {
-		config.room = jsonConfig["room"]
-	}
-	if config.preface == "" {
-		config.preface = jsonConfig["preface"]
+	required := []string{"server", "token", "room", "preface"}
+	for _, key := range required {
+		if config[key] == "" {
+			config[key] = confFile[key]
+		}
 	}
 }
 
 func validateConfigOrDie() {
 	var missing []string
-	if config.server == "" {
-		missing = append(missing, "server")
-	}
-	if config.token == "" {
-		missing = append(missing, "token")
-	}
-	if config.room == "" {
-		missing = append(missing, "room")
+	required := []string{"server", "token", "room"}
+	for _, key := range required {
+		if config[key] == "" {
+			missing = append(missing, key)
+		}
 	}
 	if len(missing) > 0 {
 		log.Fatal("Missing required parameters: ", strings.Join(missing, ", "))
@@ -167,7 +131,7 @@ func buildMessage(email string) (message string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	preface := config.preface
+	preface := config["preface"]
 	if preface != "" {
 		message += preface + "\n"
 	}
@@ -207,14 +171,14 @@ func sendMessage(message string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	txnId := getTransactionId()
-	url := fmt.Sprintf("%s/_matrix/client/v3/rooms/%s/send/m.room.message/%s", config.server, config.room, txnId)
+	urlFmt := "%s/_matrix/client/v3/rooms/%s/send/m.room.message/%s"
+	url := fmt.Sprintf(urlFmt, config["server"], config["room"], getTransactionId())
 	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(reqBody))
 	if err != nil {
 		log.Fatal(err)
 	}
 	query := req.URL.Query()
-	query.Set("access_token", config.token)
+	query.Set("access_token", config["token"])
 	req.URL.RawQuery = query.Encode()
 	sendHttpRequest(req)
 }
