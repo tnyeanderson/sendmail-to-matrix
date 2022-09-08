@@ -59,6 +59,10 @@ type MatrixRequestBody struct {
 	Msgtype string `json:"msgtype"`
 }
 
+// I know, "this should be a struct!"
+// But flags need to be parsed first, applying conf file values if not set by flags
+// Check the parseConfigFile and validateConfigOrDie functions first
+// Then try to convince me to make it a struct for no benefit :)
 type Config map[string]string
 
 var config Config
