@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"html"
 	"io"
 	"io/ioutil"
 	"log"
@@ -14,13 +15,18 @@ import (
 	"net/http"
 	"net/mail"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/microcosm-cc/bluemonday"
 )
 
+var Version = "v0.0.1"
+
 var usage = `
-Take an email message via STDIN and forward it to a Matrix room
+Read an email message from STDIN and forward it to a Matrix room
 
 USAGE:
 
@@ -28,7 +34,7 @@ USAGE:
 
 CONFIGURATION:
 
-  You must define a server, token, and room either using a config file or via command-line parameters.
+  A server, token, and room must be set either using a config file or via command-line parameters.
 
   Config file format (JSON):
   {
@@ -59,12 +65,19 @@ var config Config
 
 func parseFlags() {
 	// Parse the flags
+	version := flag.Bool("version", false, "Print the application version and exit")
 	configFile := flag.String("config-file", "", "Path to config file")
 	server := flag.String("server", "", "Matrix homeserver url")
 	token := flag.String("token", "", "Matrix account access token")
 	room := flag.String("room", "", "Matrix Room ID")
 	preface := flag.String("preface", "", "Preface the matrix message with arbitrary text (optional)")
 	flag.Parse()
+
+	// If the version flag is set, print the version and exit
+	if *version {
+		fmt.Println(Version)
+		os.Exit(0)
+	}
 
 	// Put them in the config
 	config["configFile"] = *configFile
@@ -190,15 +203,32 @@ func addAccessToken(req *http.Request, token string) {
 	req.URL.RawQuery = query.Encode()
 }
 
+func removeHtmlTags(message string) (s string) {
+	policy := bluemonday.StrictPolicy()
+	s = policy.Sanitize(message)
+	s = html.UnescapeString(s)
+	s = fixWhitespace(s)
+	return
+}
+
+func fixWhitespace(message string) string {
+	re := regexp.MustCompile("\n\n+")
+	return re.ReplaceAllLiteralString(message, "\n")
+}
+
 func getRequestBody(message string) *bytes.Buffer {
-	reqBody, err := json.Marshal(MatrixRequestBody{
-		Body:    message,
+	b := removeHtmlTags(message)
+	buf := bytes.NewBuffer([]byte{})
+	enc := json.NewEncoder(buf)
+	enc.SetEscapeHTML(false)
+	err := enc.Encode(MatrixRequestBody{
+		Body:    b,
 		Msgtype: "m.text",
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	return bytes.NewBuffer(reqBody)
+	return buf
 }
 
 func sendMessage(message string) {
