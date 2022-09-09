@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"flag"
@@ -167,23 +166,14 @@ func buildBody(m *mail.Message) string {
 	return string(b[:])
 }
 
-func buildMessage(email string) (message string) {
-	r := strings.NewReader(email)
-	m, err := mail.ReadMessage(r)
+func buildMessage(email io.Reader) (message string) {
+	m, err := mail.ReadMessage(email)
 	if err != nil {
 		log.Fatal(err)
 	}
 	message += buildPreface()
 	message += buildSubject(m)
 	message += buildBody(m)
-	return
-}
-
-func getEmailFromStdin() (email string) {
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		email += scanner.Text() + "\n"
-	}
 	return
 }
 
@@ -258,7 +248,6 @@ func main() {
 	flag.Usage = printUsage
 	getConfig()
 	validateConfigOrDie()
-	email := getEmailFromStdin()
-	message := buildMessage(email)
+	message := buildMessage(os.Stdin)
 	sendMessage(message)
 }
