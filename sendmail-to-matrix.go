@@ -97,32 +97,30 @@ func getConfig() {
 	// We need it parsed before for the --config-file flag
 	parseFlags()
 
-	// Parse config file
-	parseConfigFile()
+	// Parse config file (if set)
+	if config["configFile"] != "" {
+		parseConfigFile(config["configFile"])
+	}
 }
 
-func parseConfigFile() {
+func parseConfigFile(path string) {
 	var confFile Config
 
-	if config["configFile"] == "" {
-		return
-	}
-
 	// Read config file
-	content, err := ioutil.ReadFile(config["configFile"])
+	content, err := ioutil.ReadFile(path)
 	if err != nil {
 		log.Fatal("Error when opening file: ", err)
 	}
 
-	// Now unmarshall the data into `payload`
+	// Unmarshall the contents
 	err = json.Unmarshal(content, &confFile)
 	if err != nil {
-		log.Fatal("Error during Unmarshal(): ", err)
+		log.Fatal("Error trying to parse JSON file: ", err)
 	}
 
 	// Set the values only if they weren't already set by flags
-	required := []string{"server", "token", "room", "preface"}
-	for _, key := range required {
+	keys := []string{"server", "token", "room", "preface"}
+	for _, key := range keys {
 		if config[key] == "" {
 			config[key] = confFile[key]
 		}
