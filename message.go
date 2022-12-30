@@ -129,6 +129,10 @@ func readMixedParts(r *multipart.Reader) ([]byte, error) {
 		partType := getPartType(p)
 		// Only text parts are recognized.
 		if strings.HasPrefix(partType, "text/") {
+			// Add newline between parts
+			if out.Len() > 0 {
+				out.Write([]byte("\n"))
+			}
 			// Ignore errors
 			io.Copy(out, p)
 		}
