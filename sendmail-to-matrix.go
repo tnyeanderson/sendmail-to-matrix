@@ -181,10 +181,9 @@ func parseMultipart(m *mail.Message, messageType, boundary string) ([]byte, erro
 	if messageType == "multipart/alternative" {
 		return readAlternativeParts(mr)
 	}
-	// TODO: Handle multipart/mixed
-	//if messageType == "multipart/mixed" {
-	//	return readMixedParts(mr)
-	//}
+	if messageType == "multipart/mixed" {
+		return readMixedParts(mr)
+	}
 	return nil, fmt.Errorf("Not a recognized multipart message")
 }
 
@@ -194,7 +193,7 @@ func readAlternativeParts(r *multipart.Reader) ([]byte, error) {
 	parts := map[string][]byte{}
 	for {
 		p, err := r.NextPart()
-		if err == io.EOF {
+		if err != nil {
 			break
 		}
 		if yes, _ := partIsAttachment(p); yes {
@@ -216,6 +215,28 @@ func readAlternativeParts(r *multipart.Reader) ([]byte, error) {
 		return bytes, nil
 	}
 	return nil, fmt.Errorf("Unsupported alternative part")
+}
+
+func readMixedParts(r *multipart.Reader) ([]byte, error) {
+	out := bytes.NewBuffer([]byte{})
+	for {
+		p, err := r.NextPart()
+		if err != nil {
+			break
+		}
+		if yes, _ := partIsAttachment(p); yes {
+			// Ignore attachments for now
+			// TODO: Handle attachments
+			continue
+		}
+		partType := getPartType(p)
+		// Only text parts are recognized.
+		if strings.HasPrefix(partType, "text/") {
+			// Ignore errors
+			io.Copy(out, p)
+		}
+	}
+	return out.Bytes(), nil
 }
 
 // Get the top-level media type and parameters. If not set, use the default
