@@ -11,6 +11,8 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/mail"
 	"os"
@@ -157,11 +159,94 @@ func buildSubject(m *mail.Message) (s string) {
 }
 
 func buildBody(m *mail.Message) string {
+	messageType, params := getMessageType(m)
+	if strings.HasPrefix(messageType, "multipart/") {
+		boundary := params["boundary"]
+		if boundary != "" {
+			content, err := parseMultipart(m, messageType, boundary)
+			if err == nil {
+				return string(content)
+			}
+		}
+	}
 	b, err := io.ReadAll(m.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
-	return string(b[:])
+	return string(b)
+}
+
+func parseMultipart(m *mail.Message, messageType, boundary string) ([]byte, error) {
+	mr := multipart.NewReader(m.Body, boundary)
+	if messageType == "multipart/alternative" {
+		return readAlternativeParts(mr)
+	}
+	// TODO: Handle multipart/mixed
+	//if messageType == "multipart/mixed" {
+	//	return readMixedParts(mr)
+	//}
+	return nil, fmt.Errorf("Not a recognized multipart message")
+}
+
+// Only text/plain and text/html are recognized. In defiance of MIME (RFC2046),
+// text/plain is preferred.
+func readAlternativeParts(r *multipart.Reader) ([]byte, error) {
+	parts := map[string][]byte{}
+	for {
+		p, err := r.NextPart()
+		if err == io.EOF {
+			break
+		}
+		if yes, _ := partIsAttachment(p); yes {
+			// Ignore attachments
+			continue
+		}
+		partType := getPartType(p)
+		bytes, err := io.ReadAll(p)
+		if err == nil {
+			// The last recognized result (accounting for text/plain preference) should
+			// be returned. Using a map overrides previous parts with the same type.
+			parts[partType] = bytes
+		}
+	}
+	if bytes, ok := parts["text/plain"]; ok {
+		return bytes, nil
+	}
+	if bytes, ok := parts["text/html"]; ok {
+		return bytes, nil
+	}
+	return nil, fmt.Errorf("Unsupported alternative part")
+}
+
+// Get the top-level media type and parameters. If not set, use the default
+// according to RFC2045 5.2
+func getMessageType(m *mail.Message) (contentType string, params map[string]string) {
+	c := m.Header["Content-Type"]
+	if len(c) > 0 {
+		t, p, _ := mime.ParseMediaType(c[0])
+		return t, p
+	}
+	return "text/plain", map[string]string{"charset": "us-ascii"}
+}
+
+func getPartType(p *multipart.Part) string {
+	c := p.Header["Content-Type"]
+	if len(c) > 0 {
+		t, _, _ := mime.ParseMediaType(c[0])
+		return t
+	}
+	return ""
+}
+
+func partIsAttachment(p *multipart.Part) (bool, map[string]string) {
+	d := p.Header["Content-Disposition"]
+	if len(d) > 0 {
+		t, params, _ := mime.ParseMediaType(d[0])
+		if t == "attachment" {
+			return true, params
+		}
+	}
+	return false, map[string]string{}
 }
 
 func buildMessage(email io.Reader) (message string) {
