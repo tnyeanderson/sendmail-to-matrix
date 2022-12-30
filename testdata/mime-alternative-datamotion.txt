@@ -1,0 +1,22 @@
+MIME-Version: 1.0
+X-Mailer: MailBee.NET 8.0.4.428
+Subject: This is the subject of a sample message
+To: user@example.com
+Content-Type: multipart/alternative;
+        boundary="XXXXboundary text"
+
+--XXXXboundary text
+Content-Type: text/plain;
+        charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+This is the body text of a sample message.
+
+--XXXXboundary text
+Content-Type: text/html;
+        charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+<pre>This is the body text of a sample message.</pre>
+--XXXXboundary text--
+SAMPLE TAKEN FROM https://kb.datamotion.com/?ht_kb=what-does-a-sample-mime-message-look-like

@@ -1,0 +1,44 @@
+ME-Version: 1.0
+X-Mailer: MailBee.NET 8.0.4.428
+Subject: test subject
+To: kevinm@datamotion.com
+Content-Type: multipart/mixed;
+        boundary="XXXXboundary text"
+ 
+--XXXXboundary text
+Content-Type: multipart/alternative;
+        boundary="XXXXboundary text"
+ 
+--XXXXboundary text
+Content-Type: text/plain;
+        charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+ 
+This is the body text of a sample message.
+--XXXXboundary text
+Content-Type: text/html;
+        charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+<pre>This is the body text of a sample message.</pre>
+
+--XXXXboundary text
+Content-Type: text/plain;
+        name="log_attachment.txt"
+Content-Disposition: attachment;
+        filename="log_attachment.txt"
+Content-Transfer-Encoding: base64
+
+TUlNRS1WZXJzaW9uOiAxLjANClgtTWFpbGVyOiBNYWlsQmVlLk5FVCA4LjAuNC40MjgNClN1Ympl
+Y3Q6IHRlc3Qgc3ViamVjdA0KVG86IGtldmlubUBkYXRhbW90aW9uLmNvbQ0KQ29udGVudC1UeXBl
+OiBtdWx0aXBhcnQvYWx0ZXJuYXRpdmU7DQoJYm91bmRhcnk9Ii0tLS09X05leHRQYXJ0XzAwMF9B
+RTZCXzcyNUUwOUFGLjg4QjdGOTM0Ig0KDQoNCi0tLS0tLT1fTmV4dFBhcnRfMDAwX0FFNkJfNzI1
+RTA5QUYuODhCN0Y5MzQNCkNvbnRlbnQtVHlwZTogdGV4dC9wbGFpbjsNCgljaGFyc2V0PSJ1dGYt
+OCINCkNvbnRlbnQtVHJhbnNmZXItRW5jb2Rpbmc6IHF1b3RlZC1wcmludGFibGUNCg0KdGVzdCBi
+b2R5DQotLS0tLS09X05leHRQYXJ0XzAwMF9BRTZCXzcyNUUwOUFGLjg4QjdGOTM0DQpDb250ZW50
+LVR5cGU6IHRleHQvaHRtbDsNCgljaGFyc2V0PSJ1dGYtOCINCkNvbnRlbnQtVHJhbnNmZXItRW5j
+b2Rpbmc6IHF1b3RlZC1wcmludGFibGUNCg0KPHByZT50ZXN0IGJvZHk8L3ByZT4NCi0tLS0tLT1f
+TmV4dFBhcnRfMDAwX0FFNkJfNzI1RTA5QUYuODhCN0Y5MzQtLQ0K
+
+--XXXXboundary text--
+ENTER YOUR CODE HERE
+SAMPLE TAKEN FROM https://kb.datamotion.com/?ht_kb=what-does-a-sample-mime-message-look-like
