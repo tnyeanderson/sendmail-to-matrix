@@ -70,7 +70,7 @@ func removeHtmlTags(message string) (s string) {
 
 func fixWhitespace(message string) string {
 	re := regexp.MustCompile("\n\n+")
-	return re.ReplaceAllLiteralString(message, "\n")
+	return re.ReplaceAllLiteralString(message, "\n\n")
 }
 
 func parseMultipart(m *mail.Message, messageType, boundary string) ([]byte, error) {
