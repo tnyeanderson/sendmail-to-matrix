@@ -38,12 +38,11 @@ func addAccessToken(req *http.Request, token string) {
 }
 
 func buildRequestBody(message string) *bytes.Buffer {
-	b := removeHtmlTags(message)
 	buf := bytes.NewBuffer([]byte{})
 	enc := json.NewEncoder(buf)
 	enc.SetEscapeHTML(false)
 	err := enc.Encode(MatrixRequestBody{
-		Body:    b,
+		Body:    message,
 		Msgtype: "m.text",
 	})
 	if err != nil {

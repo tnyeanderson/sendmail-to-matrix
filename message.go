@@ -60,12 +60,12 @@ func buildMessage(email io.Reader) (message string) {
 	return
 }
 
-func removeHtmlTags(message string) (s string) {
+func removeHtmlTags(input []byte) []byte {
 	policy := bluemonday.StrictPolicy()
-	s = policy.Sanitize(message)
+	s := policy.Sanitize(string(input))
 	s = html.UnescapeString(s)
 	s = fixWhitespace(s)
-	return
+	return []byte(s)
 }
 
 func fixWhitespace(message string) string {
@@ -109,6 +109,7 @@ func readAlternativeParts(r *multipart.Reader) ([]byte, error) {
 		return bytes, nil
 	}
 	if bytes, ok := parts["text/html"]; ok {
+		bytes = removeHtmlTags(bytes)
 		return bytes, nil
 	}
 	return nil, fmt.Errorf("Unsupported alternative part")
@@ -132,6 +133,13 @@ func readMixedParts(r *multipart.Reader) ([]byte, error) {
 			// Add newline between parts
 			if out.Len() > 0 {
 				out.Write([]byte("\n"))
+			}
+			if partType == "text/html" {
+				buf := bytes.NewBuffer([]byte{})
+				io.Copy(buf, p)
+				b := removeHtmlTags(buf.Bytes())
+				out.Write(b)
+				continue
 			}
 			// Ignore errors
 			io.Copy(out, p)
