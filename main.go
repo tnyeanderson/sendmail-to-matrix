@@ -5,7 +5,7 @@ import (
 	"os"
 )
 
-var Version = "v0.1.0"
+var Version = "v0.1.1"
 
 func main() {
 	flag.Usage = printUsage
