@@ -71,10 +71,15 @@ Your config file might look like this:
 }
 ```
 
+Ensure that `sendmail-to-matrix` is executable:
+```bash
+chmod +x /path/to/sendmail-to-matrix
+```
+
 Add the following line to `/etc/aliases` to pipe emails sent to
 `myuser@localhost` to the script:
 ```bash
-myuser: "|sendmail-to-matrix --config-file /app/config.json"
+myuser: "|/path/to/sendmail-to-matrix --config-file /app/config.json"
 ```
 
 > Note: The alias can also be added to the user's `~/.forward` file.
