@@ -26,6 +26,22 @@ func TestBuildMessageMixedMS(t *testing.T) {
 	}
 }
 
+func TestBuildMessageMixedHtml(t *testing.T) {
+	f, _ := os.Open("testdata/mime-mixed-html.txt")
+	m := buildMessage(f)
+	expected := `this should not be sanitized
+
+example of weird (stupid) proxmox url format:
+
+<http://my.test.url/foo/bar>
+
+this should be sanitized
+`
+	if m != expected {
+		t.Fail()
+	}
+}
+
 func TestBuildMessageMixed2(t *testing.T) {
 	f, _ := os.Open("testdata/mime-mixed-2.txt")
 	m := buildMessage(f)
