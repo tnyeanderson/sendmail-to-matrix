@@ -55,14 +55,13 @@ Generate a config file by following the prompts:
 /path/to/sendmail-to-matrix generate-config
 ```
 
-> Note: This example places the `config.json` file in the `/app` folder. You
-can place it anywhere the script can read from as long as you specify it using
-`--config-file /path/to/config.json`
+> Note: You can place the configuration file anywhere the script can read from
+as long as you specify it using `--config-file /path/to/config.json`
 
 Add the following line to `/etc/aliases` to pipe emails sent to
 `myuser@localhost` to the script:
 ```bash
-myuser: "|/path/to/sendmail-to-matrix --config-file /app/config.json"
+myuser: "|/path/to/sendmail-to-matrix --config-file /path/to/config.json"
 ```
 
 > Note: The alias can also be added to the user's `~/.forward` file.
