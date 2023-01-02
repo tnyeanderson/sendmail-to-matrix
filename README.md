@@ -52,7 +52,7 @@ chmod +x /path/to/sendmail-to-matrix
 
 Generate a config file by following the prompts:
 ```bash
-sendmail-to-matrix generate-config
+/path/to/sendmail-to-matrix generate-config
 ```
 
 > Note: This example places the `config.json` file in the `/app` folder. You
@@ -95,7 +95,7 @@ A song by Bikini Kill
 Alternatively, you can test with a file that contains an email in standard
 Linux mailbox form.
 ```bash
-cat email.txt | sendmail-to-matrix
+cat email.txt | /path/to/sendmail-to-matrix
 ```
 
 You're done! Direct any administration-related emails (Proxmox notifications,
