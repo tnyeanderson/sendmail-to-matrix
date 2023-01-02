@@ -2,14 +2,13 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"log"
 	"math"
-	"math/rand"
+	"math/big"
 	"net/http"
-	"strconv"
-	"time"
 )
 
 type MatrixRequestBody struct {
@@ -19,10 +18,15 @@ type MatrixRequestBody struct {
 
 func getTransactionId() string {
 	// Get a 10 character random string to use as a transaction ID (nonce)
-	rand.Seed(time.Now().Unix())
-	n := math.Floor(rand.Float64() * math.Pow(10, 10))
-	s := strconv.FormatFloat(n, 'f', 0, 64)
-	return s
+	length := float64(10)
+	min := int64(math.Pow(10, length-1))
+	max := int64(math.Pow(10, length) - 1)
+	r, err := rand.Int(rand.Reader, big.NewInt(max))
+	if err != nil {
+		log.Fatal(err)
+	}
+	v := big.NewInt(0).Add(r, big.NewInt(min))
+	return v.String()
 }
 
 func getUrl(server string, room string) string {
