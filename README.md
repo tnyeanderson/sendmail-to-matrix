@@ -104,6 +104,5 @@ created as your alias) and enjoy getting notifications in a modern way.
 
 ## Caveats
 
-- HTML tags are removed from the message body if present (and not malformed...
-  looking at you Proxmox). `multipart/alternative` emails will prefer
-  `text/plain`.
+- HTML tags are removed from the parts of type `text/html`
+- Messages with type `multipart/alternative` will prefer `text/plain`.
