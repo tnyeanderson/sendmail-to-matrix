@@ -45,36 +45,19 @@ Values from a config file are overwritten by command-line parameters. See
 recommended to use the double-hyphen syntax (`--config-file` instead of
 `-config-file`) for consistency with other standard applications.
 
-First, obtain an access token:
+Ensure that `sendmail-to-matrix` is executable:
 ```bash
-curl -XPOST -d '{"type":"m.login.password", "user":"example", "password":"wordpass"}' "https://homeserver:8448/_matrix/client/r0/login"
+chmod +x /path/to/sendmail-to-matrix
 ```
 
-Then, copy `config.json.example` from this repo and edit it for your needs:
+Generate a config file by following the prompts:
 ```bash
-cp config.json.example /app/config.json
-
-# Don't forget to edit the file!
+sendmail-to-matrix generate-config
 ```
 
 > Note: This example places the `config.json` file in the `/app` folder. You
 can place it anywhere the script can read from as long as you specify it using
 `--config-file /path/to/config.json`
-
-Your config file might look like this:
-```json
-{
-  "server": "https://matrix.org",
-  "token": "<your_access_token>",
-  "room": "!myroomid:matrix.org",
-  "preface": "Sent from my homelab"
-}
-```
-
-Ensure that `sendmail-to-matrix` is executable:
-```bash
-chmod +x /path/to/sendmail-to-matrix
-```
 
 Add the following line to `/etc/aliases` to pipe emails sent to
 `myuser@localhost` to the script:

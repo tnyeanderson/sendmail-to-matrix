@@ -42,6 +42,44 @@ func parseFlags() {
 	config["preface"] = *preface
 }
 
+func generateConfig() {
+	// Prompt user
+	configFile := ask("Output path for generated config:")
+	server := ask("Matrix home server (ex. https://matrix.org):")
+	user := ask("Matrix username:")
+	password := ask("Matrix password:")
+	room := ask("Matrix room:")
+	preface := ask("Message preface:")
+
+	// Fetch access_token
+	token, err := getToken(server, user, password)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Generate json
+	data := map[string]string{
+		"server":  server,
+		"token":   token,
+		"room":    room,
+		"preface": preface,
+	}
+	b, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Save to file
+	err = ioutil.WriteFile(configFile, b, 0600)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Notify user
+	fmt.Println("")
+	fmt.Printf("Saved config to: %s\n", configFile)
+}
+
 func getConfig() {
 	config = make(Config)
 

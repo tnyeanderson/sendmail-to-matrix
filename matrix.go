@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"math/big"
@@ -14,6 +15,30 @@ import (
 type MatrixRequestBody struct {
 	Body    string `json:"body"`
 	Msgtype string `json:"msgtype"`
+}
+
+func getToken(server, user, password string) (string, error) {
+	uri := fmt.Sprintf("%s/_matrix/client/r0/login", server)
+	bodyfmt := `{"type":"m.login.password", "user": "%s", "password":"%s"}`
+	body := fmt.Sprintf(bodyfmt, user, password)
+	client := &http.Client{}
+	res, err := client.Post(uri, "application/json; charset=UTF-8", bytes.NewBuffer([]byte(body)))
+	if err != nil {
+		return "", err
+	}
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+	data := make(map[string]interface{})
+	err = json.Unmarshal(b, &data)
+	if err != nil {
+		return "", err
+	}
+	if token, ok := data["access_token"].(string); ok {
+		return token, nil
+	}
+	return "", fmt.Errorf("Failed to unmarshal access_token from response")
 }
 
 func getTransactionId() string {
