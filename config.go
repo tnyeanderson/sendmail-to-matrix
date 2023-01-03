@@ -69,6 +69,9 @@ func generateConfig() {
 		log.Fatal(err)
 	}
 
+	// Print the result
+	fmt.Printf("\n%s\n\n", string(b))
+
 	// Save to file
 	err = ioutil.WriteFile(configFile, b, 0600)
 	if err != nil {
