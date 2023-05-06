@@ -40,7 +40,7 @@ a `server`, `token`, and `room` with command-line parameters.
 Values from a config file are overwritten by command-line parameters. See
 `sendmail-to-matrix --help` for help.
 
-> NOTE: CLI options can be have a few
+> NOTE: CLI options can have a few different
 [formats](https://pkg.go.dev/flag#hdr-Command_line_flag_syntax), but it is
 recommended to use the double-hyphen syntax (`--config-file` instead of
 `-config-file`) for consistency with other standard applications.
