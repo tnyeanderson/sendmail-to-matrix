@@ -24,3 +24,5 @@ sendmail-to-matrix
 
 # Go workspace file
 go.work
+
+dist/
