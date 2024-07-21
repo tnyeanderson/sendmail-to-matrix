@@ -15,12 +15,11 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 )
 
-func buildPreface() (p string) {
-	p = config["preface"]
+func buildPreface(p string) string {
 	if p != "" {
 		p = p + "\n"
 	}
-	return
+	return p
 }
 
 func buildSubject(m *mail.Message) (s string) {
@@ -49,12 +48,12 @@ func buildBody(m *mail.Message) string {
 	return string(b)
 }
 
-func buildMessage(email io.Reader) (message string) {
+func buildMessage(email io.Reader, preface string) (message string) {
 	m, err := mail.ReadMessage(email)
 	if err != nil {
 		log.Fatal(err)
 	}
-	message += buildPreface()
+	message += buildPreface(preface)
 	message += buildSubject(m)
 	message += buildBody(m)
 	return

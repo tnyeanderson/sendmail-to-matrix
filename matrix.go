@@ -10,6 +10,7 @@ import (
 	"math"
 	"math/big"
 	"net/http"
+	"regexp"
 )
 
 type MatrixRequestBody struct {
@@ -80,15 +81,26 @@ func buildRequestBody(message string) *bytes.Buffer {
 	return buf
 }
 
-func sendMessage(message string) {
-	url := getUrl(config["server"], config["room"])
+func sendMessage(config *Config, message string) {
+	url := getUrl(config.Server, config.Room)
 	body := buildRequestBody(message)
 	req, err := http.NewRequest(http.MethodPut, url, body)
 	if err != nil {
 		log.Fatal(err)
 	}
-	addAccessToken(req, config["token"])
+	addAccessToken(req, config.Token)
 	sendHttpRequest(req)
+}
+
+// filterMessage returns true if the message should be forwarded to matrix and
+// false if the message should be skipped/ignored.
+func filterMessage(message string, skips []*regexp.Regexp) bool {
+	for _, r := range skips {
+		if r.MatchString(message) {
+			return false
+		}
+	}
+	return true
 }
 
 func sendHttpRequest(req *http.Request) {

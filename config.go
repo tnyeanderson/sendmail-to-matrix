@@ -2,31 +2,69 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"regexp"
 	"strings"
+
+	"github.com/spf13/pflag"
 )
 
-// I know, "this should be a struct!"
-// But flags need to be parsed first, applying conf file values if not set by flags
-// Check the parseConfigFile and validateConfigOrDie functions first
-// Then try to convince me to make it a struct for no benefit :)
-type Config map[string]string
+type Config struct {
+	ConfigFile  string   `json:"configFile"`
+	Server      string   `json:"server"`
+	Token       string   `json:"token"`
+	Room        string   `json:"room"`
+	Preface     string   `json:"preface"`
+	Skips       []string `json:"skips"`
+	skipsRegexp []*regexp.Regexp
+}
 
-var config Config
+func initConfig() (*Config, error) {
+	pflag.Usage = printUsage
 
-func parseFlags() {
+	// Flags
+	fromFlags := parseFlags()
+
+	// Config file
+	fromFile := &Config{}
+	if f := fromFlags.ConfigFile; f != "" {
+		content, err := ioutil.ReadFile(f)
+		if err != nil {
+			return nil, err
+		}
+
+		err = json.Unmarshal(content, fromFile)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Merge
+	c := mergeConfigs(*fromFlags, *fromFile)
+
+	// Validate
+	if err := validateConfig(c); err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+func parseFlags() *Config {
+	c := &Config{}
+
 	// Parse the flags
-	version := flag.Bool("version", false, "Print the application version and exit")
-	configFile := flag.String("config-file", "", "Path to config file")
-	server := flag.String("server", "", "Matrix homeserver url")
-	token := flag.String("token", "", "Matrix account access token")
-	room := flag.String("room", "", "Matrix Room ID")
-	preface := flag.String("preface", "", "Preface the matrix message with arbitrary text (optional)")
-	flag.Parse()
+	pflag.StringVar(&(c.ConfigFile), "config-file", "", "Path to config file")
+	pflag.StringVar(&(c.Server), "server", "", "Matrix homeserver url")
+	pflag.StringVar(&(c.Token), "token", "", "Matrix account access token")
+	pflag.StringVar(&(c.Room), "room", "", "Matrix Room ID")
+	pflag.StringVar(&(c.Preface), "preface", "", "Preface the matrix message with arbitrary text (optional)")
+	pflag.StringArrayVar(&(c.Skips), "skip", []string{}, "Regex pattern that will skip sending a message if it matches (optional)")
+	version := pflag.Bool("version", false, "Print the application version and exit")
+	pflag.Parse()
 
 	// If the version flag is set, print the version and exit
 	if *version {
@@ -34,12 +72,56 @@ func parseFlags() {
 		os.Exit(0)
 	}
 
-	// Put them in the config
-	config["configFile"] = *configFile
-	config["server"] = *server
-	config["token"] = *token
-	config["room"] = *room
-	config["preface"] = *preface
+	return c
+}
+
+func mergeConfigs(fromFlags Config, fromFile Config) *Config {
+	// Flags override config file values
+	c := &fromFile
+	if v := fromFlags.ConfigFile; v != "" {
+		c.ConfigFile = v
+	}
+	if v := fromFlags.Server; v != "" {
+		c.Server = v
+	}
+	if v := fromFlags.Token; v != "" {
+		c.Token = v
+	}
+	if v := fromFlags.Room; v != "" {
+		c.Room = v
+	}
+	if v := fromFlags.Preface; v != "" {
+		c.Preface = v
+	}
+	// Skips from flags and config file are merged
+	for _, skip := range fromFlags.Skips {
+		c.Skips = append(c.Skips, skip)
+	}
+	return c
+}
+
+func validateConfig(c *Config) error {
+	var missing []string
+	if c.Server == "" {
+		missing = append(missing, "server")
+	}
+	if c.Token == "" {
+		missing = append(missing, "token")
+	}
+	if c.Room == "" {
+		missing = append(missing, "room")
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("Missing required parameters: %s", strings.Join(missing, ", "))
+	}
+	for _, skip := range c.Skips {
+		r, err := regexp.Compile(skip)
+		if err != nil {
+			return err
+		}
+		c.skipsRegexp = append(c.skipsRegexp, r)
+	}
+	return nil
 }
 
 func generateConfig() {
@@ -81,54 +163,4 @@ func generateConfig() {
 	// Notify user
 	fmt.Println("")
 	fmt.Printf("Saved config to: %s\n", configFile)
-}
-
-func getConfig() {
-	config = make(Config)
-
-	// Parse command line arguments. These override config file values.
-	// We need it parsed before for the --config-file flag
-	parseFlags()
-
-	// Parse config file (if set)
-	if config["configFile"] != "" {
-		parseConfigFile(config["configFile"])
-	}
-}
-
-func parseConfigFile(path string) {
-	var confFile Config
-
-	// Read config file
-	content, err := ioutil.ReadFile(path)
-	if err != nil {
-		log.Fatal("Error when opening file: ", err)
-	}
-
-	// Unmarshall the contents
-	err = json.Unmarshal(content, &confFile)
-	if err != nil {
-		log.Fatal("Error trying to parse JSON file: ", err)
-	}
-
-	// Set the values only if they weren't already set by flags
-	keys := []string{"server", "token", "room", "preface"}
-	for _, key := range keys {
-		if config[key] == "" {
-			config[key] = confFile[key]
-		}
-	}
-}
-
-func validateConfigOrDie() {
-	var missing []string
-	required := []string{"server", "token", "room"}
-	for _, key := range required {
-		if config[key] == "" {
-			missing = append(missing, key)
-		}
-	}
-	if len(missing) > 0 {
-		log.Fatal("Missing required parameters: ", strings.Join(missing, ", "))
-	}
 }

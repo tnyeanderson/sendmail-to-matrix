@@ -1,20 +1,25 @@
 package main
 
 import (
-	"flag"
+	"log"
 	"os"
 )
 
 var Version = "v0.1.2"
 
 func main() {
-	if os.Args[1] == "generate-config" {
+	if len(os.Args) > 1 && os.Args[1] == "generate-config" {
 		generateConfig()
 		return
 	}
-	flag.Usage = printUsage
-	getConfig()
-	validateConfigOrDie()
-	message := buildMessage(os.Stdin)
-	sendMessage(message)
+
+	config, err := initConfig()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	message := buildMessage(os.Stdin, config.Preface)
+	if filterMessage(message, config.skipsRegexp) {
+		sendMessage(config, message)
+	}
 }

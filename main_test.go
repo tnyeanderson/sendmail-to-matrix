@@ -7,7 +7,7 @@ import (
 
 func TestBuildMessageAlternative(t *testing.T) {
 	f, _ := os.Open("testdata/mime-alternative-datamotion.txt")
-	m := buildMessage(f)
+	m := buildMessage(f, "")
 	expected := `Subject: This is the subject of a sample message
 This is the body text of a sample message.
 `
@@ -18,7 +18,7 @@ This is the body text of a sample message.
 
 func TestBuildMessageMixedMS(t *testing.T) {
 	f, _ := os.Open("testdata/mime-mixed-ms.txt")
-	m := buildMessage(f)
+	m := buildMessage(f, "")
 	expected := `this is the body text
 `
 	if m != expected {
@@ -28,7 +28,7 @@ func TestBuildMessageMixedMS(t *testing.T) {
 
 func TestBuildMessageMixedHtml(t *testing.T) {
 	f, _ := os.Open("testdata/mime-mixed-html.txt")
-	m := buildMessage(f)
+	m := buildMessage(f, "")
 	expected := `this should not be sanitized
 
 example of weird (stupid) proxmox url format:
@@ -44,7 +44,7 @@ this should be sanitized
 
 func TestBuildMessageMixed2(t *testing.T) {
 	f, _ := os.Open("testdata/mime-mixed-2.txt")
-	m := buildMessage(f)
+	m := buildMessage(f, "")
 	expected := `Subject: Test message from Netscape Communicator 4.7
 
 The Hare and the Tortoise
