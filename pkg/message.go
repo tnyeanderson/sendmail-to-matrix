@@ -1,4 +1,4 @@
-package main
+package pkg
 
 import (
 	"bytes"
@@ -11,52 +11,88 @@ import (
 	"net/mail"
 	"regexp"
 	"strings"
+	"text/template"
 
+	"github.com/Masterminds/sprig"
 	"github.com/microcosm-cc/bluemonday"
 )
 
-func buildPreface(p string) string {
-	if p != "" {
-		p = p + "\n"
-	}
-	return p
+// DefaultMessageTemplate is the default template used to render messages.
+const DefaultMessageTemplate = "{{.Preface}}{{.Subject}}\n\n{{.Body}}{{.Epilogue}}"
+
+// Message represents a matrix message.
+type Message struct {
+	Subject  string
+	Body     string
+	Preface  string
+	Epilogue string
 }
 
-func buildSubject(m *mail.Message) (s string) {
-	s = m.Header.Get("Subject")
-	if s != "" {
-		s = "Subject: " + s + "\n"
+// ParseEmail reads an email from an io.Reader (usually stdin) and parses the
+// date into Message.
+func (m *Message) ParseEmail(r io.Reader) error {
+	e, err := mail.ReadMessage(r)
+	if err != nil {
+		log.Fatal(err)
 	}
-	return
+	m.Subject = e.Header.Get("Subject")
+
+	body, err := parseBody(e)
+	if err != nil {
+		return err
+	}
+	m.Body = body
+
+	return nil
 }
 
-func buildBody(m *mail.Message) string {
+// Render generates the message text to be sent based on a Message and a go
+// template.
+func (m *Message) Render(templateText []byte) ([]byte, error) {
+	name := "stm"
+
+	// Create template
+	t, err := template.New(name).Funcs(sprig.FuncMap()).Parse(string(templateText))
+	if err != nil {
+		return nil, err
+	}
+
+	// Execute template
+	out := bytes.Buffer{}
+	if err := t.ExecuteTemplate(&out, name, *m); err != nil {
+		return nil, err
+	}
+
+	return out.Bytes(), nil
+}
+
+// FilterMessage returns true if the message should be forwarded to matrix and
+// false if the message should be skipped/ignored.
+func FilterMessage(message string, skips []*regexp.Regexp) bool {
+	for _, r := range skips {
+		if r.MatchString(message) {
+			return false
+		}
+	}
+	return true
+}
+
+func parseBody(m *mail.Message) (string, error) {
 	messageType, params := getMessageType(m)
 	if strings.HasPrefix(messageType, "multipart/") {
 		boundary := params["boundary"]
 		if boundary != "" {
 			content, err := parseMultipart(m, messageType, boundary)
 			if err == nil {
-				return string(content)
+				return string(content), nil
 			}
 		}
 	}
 	b, err := io.ReadAll(m.Body)
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
-	return string(b)
-}
-
-func buildMessage(email io.Reader, preface string) (message string) {
-	m, err := mail.ReadMessage(email)
-	if err != nil {
-		log.Fatal(err)
-	}
-	message += buildPreface(preface)
-	message += buildSubject(m)
-	message += buildBody(m)
-	return
+	return string(b), nil
 }
 
 func removeHtmlTags(input []byte) []byte {
