@@ -38,13 +38,12 @@ var forwardCmd = &cobra.Command{
 }
 
 func buildMessage(r io.Reader, template, preface, epilogue string) ([]byte, error) {
-	m := &pkg.Message{
-		Preface:  preface,
-		Epilogue: epilogue,
-	}
-	if err := m.ParseEmail(os.Stdin); err != nil {
+	m, err := pkg.NewMessage(r)
+	if err != nil {
 		return nil, err
 	}
+	m.Preface = preface
+	m.Epilogue = epilogue
 	return m.Render([]byte(template))
 }
 

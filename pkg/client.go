@@ -32,11 +32,12 @@ func NewUnencryptedClient(server, token string) (*UnencryptedClient, error) {
 // matrix room.
 func (c *UnencryptedClient) SendMessage(ctx context.Context, room string, message []byte) error {
 	urlFmt := "%s/_matrix/client/v3/rooms/%s/send/m.room.message/%s"
-	url := fmt.Sprintf(urlFmt, c.Server, room, getTransactionId())
+	transactionID, err := getTransactionID()
+	url := fmt.Sprintf(urlFmt, c.Server, room, transactionID)
 	body := bytes.NewBuffer([]byte{})
 	enc := json.NewEncoder(body)
 	enc.SetEscapeHTML(false)
-	err := enc.Encode(matrixRequestBody{
+	err = enc.Encode(matrixRequestBody{
 		Body:    string(message),
 		Msgtype: "m.text",
 	})

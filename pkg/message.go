@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"html"
 	"io"
-	"log"
 	"mime"
 	"mime/multipart"
 	"net/mail"
@@ -28,22 +27,23 @@ type Message struct {
 	Epilogue string
 }
 
-// ParseEmail reads an email from an io.Reader (usually stdin) and parses the
-// date into Message.
-func (m *Message) ParseEmail(r io.Reader) error {
+// NewMessage reads an email from an io.Reader (usually stdin) and returns a
+// Message with the data.
+func NewMessage(r io.Reader) (*Message, error) {
+	m := &Message{}
 	e, err := mail.ReadMessage(r)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	m.Subject = e.Header.Get("Subject")
 
 	body, err := parseBody(e)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	m.Body = body
 
-	return nil
+	return m, nil
 }
 
 // Render generates the message text to be sent based on a Message and a go

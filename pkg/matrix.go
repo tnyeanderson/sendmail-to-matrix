@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"math/big"
 	"net/http"
@@ -42,15 +41,15 @@ func GetToken(server, user, password string) (string, error) {
 	return "", fmt.Errorf("Failed to unmarshal access_token from response")
 }
 
-func getTransactionId() string {
+func getTransactionID() (string, error) {
 	// Get a 10 character random string to use as a transaction ID (nonce)
 	length := float64(10)
 	min := int64(math.Pow(10, length-1))
 	max := int64(math.Pow(10, length) - 1)
 	r, err := rand.Int(rand.Reader, big.NewInt(max))
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
 	v := big.NewInt(0).Add(r, big.NewInt(min))
-	return v.String()
+	return v.String(), nil
 }
