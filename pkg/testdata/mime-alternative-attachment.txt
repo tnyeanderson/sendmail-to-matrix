@@ -1,0 +1,24 @@
+MIME-Version: 1.0
+X-Mailer: MailBee.NET 8.0.4.428
+To: user@example.com
+Content-Type: multipart/alternative;
+        boundary="XXXXboundary text"
+
+--XXXXboundary text
+Content-Type: text/html;
+        charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+<pre>this is the body text</pre>
+--XXXXboundary text
+Content-Type: image/gif
+Content-Transfer-Encoding: Base64
+Content-Disposition: attachment; filename=smile.gif
+
+/9j/4AAQSkZJRgABAQEAYABgAAD/4QAWRXhpZgAASUkqAAgAAAAAAAAAAAD/2wBDAA...
+BwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PT...
+...
+X/76NHnS/wDPV/8Avo0f2Nh+7+9f5B/aNXsv6+Z//9k=
+
+--XXXXboundary text--
+SAMPLE TAKEN FROM https://kb.datamotion.com/?ht_kb=what-does-a-sample-mime-message-look-like

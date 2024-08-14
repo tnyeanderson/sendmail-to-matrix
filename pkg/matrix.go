@@ -19,10 +19,17 @@ type matrixRequestBody struct {
 // GetToken authenticates to a matrix server and returns a token.
 func GetToken(server, user, password string) (string, error) {
 	uri := fmt.Sprintf("%s/_matrix/client/r0/login", server)
-	bodyfmt := `{"type":"m.login.password", "user": "%s", "password":"%s"}`
-	body := fmt.Sprintf(bodyfmt, user, password)
+	bodyData := map[string]string{
+		"type":     "m.login.password",
+		"user":     user,
+		"password": password,
+	}
+	body, err := json.Marshal(bodyData)
+	if err != nil {
+		return "", err
+	}
 	client := &http.Client{}
-	res, err := client.Post(uri, "application/json; charset=UTF-8", bytes.NewBuffer([]byte(body)))
+	res, err := client.Post(uri, "application/json; charset=UTF-8", bytes.NewBuffer(body))
 	if err != nil {
 		return "", err
 	}

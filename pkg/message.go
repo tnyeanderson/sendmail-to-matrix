@@ -199,13 +199,14 @@ func getMessageType(m *mail.Message) (contentType string, params map[string]stri
 	return "text/plain", map[string]string{"charset": "us-ascii"}
 }
 
+// Get the content type. If not set, use the default according to RFC2045 5.2
 func getPartType(p *multipart.Part) string {
 	c := p.Header["Content-Type"]
 	if len(c) > 0 {
 		t, _, _ := mime.ParseMediaType(c[0])
 		return t
 	}
-	return ""
+	return "text/plain"
 }
 
 func partIsAttachment(p *multipart.Part) (bool, map[string]string) {

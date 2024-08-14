@@ -29,21 +29,8 @@ type cliConfig struct {
 }
 
 func getConfig() (*cliConfig, error) {
-	// Read from file
-	configFile := viperConf.GetString("config-file")
-	if configFile == "" {
-		configFile = filepath.Join(viperConf.GetString("config-dir"), "config.json")
-	}
-	r, err := os.Open(configFile)
-	if err != nil {
+	if err := readViperConfigFromFile(); err != nil {
 		return nil, err
-	}
-	viperConf.SetConfigType("json")
-	if err := viperConf.ReadConfig(r); err != nil {
-		// Ignore if config file not found
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return nil, err
-		}
 	}
 
 	c := &cliConfig{}
@@ -62,8 +49,35 @@ func getConfig() (*cliConfig, error) {
 	return c, nil
 }
 
+func readViperConfigFromFile() error {
+	configDir := viperConf.GetString("config-dir")
+	configFile := viperConf.GetString("config-file")
+
+	if configDir == "" {
+		// Skip trying to read config file if configDir is explicitly empty
+		return nil
+	}
+
+	configFile := viperConf.GetString("config-file")
+	if configFile == "" {
+		configFile = filepath.Join(configDir, "config.json")
+	}
+
+	r, err := os.Open(configFile)
+	if err != nil {
+		return err
+	}
+
+	viperConf.SetConfigType("json")
+	return viperConf.ReadConfig(r)
+}
+
 func init() {
-	viperConf.RegisterAlias("skips", "skip")
+	// Set default values
 	viperConf.SetDefault("config-dir", DefaultConfigDir)
 	viperConf.SetDefault("template", pkg.DefaultMessageTemplate)
+
+	// This allows us to save the data in the Skips slice in the struct, but
+	// provide multiple singular "--skip" flags.
+	viperConf.RegisterAlias("skips", "skip")
 }

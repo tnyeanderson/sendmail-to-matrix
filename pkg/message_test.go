@@ -2,8 +2,27 @@ package pkg
 
 import (
 	"os"
+	"regexp"
 	"testing"
 )
+
+func TestFilterMessage(t *testing.T) {
+	skips := []*regexp.Regexp{
+		regexp.MustCompile("shouldmatch"),
+		regexp.MustCompile("wontmatch"),
+	}
+	tests := map[string]bool{
+		"nomatch":                               true,
+		"i shouldmatch, because i should match": false,
+		"i won't actually match":                true,
+	}
+
+	for input, expected := range tests {
+		if FilterMessage(input, skips) != expected {
+			t.Fatalf("expected %t result for: %s", expected, input)
+		}
+	}
+}
 
 func TestMessageRenderPrefaceNoSubject(t *testing.T) {
 	msg := &Message{
@@ -58,6 +77,77 @@ the epilogue`
 	}
 }
 
+func TestMessageRenderNonMultipart(t *testing.T) {
+	f, _ := os.Open("testdata/mime-non-multipart.txt")
+	msg, err := NewMessage(f)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	m, err := msg.Render([]byte(DefaultMessageTemplate))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	expected := `this is not multipart`
+
+	if string(m) != expected {
+		t.Fatalf("got:\n%s\nexpected:\n%s\n", m, expected)
+	}
+
+}
+
+func TestMessageRenderHTML(t *testing.T) {
+	f, _ := os.Open("testdata/mime-html-only.txt")
+	msg, err := NewMessage(f)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	m, err := msg.Render([]byte(DefaultMessageTemplate))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	expected := `this should be sanitized`
+
+	if string(m) != expected {
+		t.Fatalf("got:\n%s\nexpected:\n%s\n", m, expected)
+	}
+
+}
+
+func TestMessageRenderMixedAttachment(t *testing.T) {
+	f, _ := os.Open("testdata/mime-mixed-attachment.txt")
+	msg, err := NewMessage(f)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	m, err := msg.Render([]byte(DefaultMessageTemplate))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	expected := `Subject: Test message
+the body`
+
+	if string(m) != expected {
+		t.Fatalf("got:\n%s\nexpected:\n%s\n", m, expected)
+	}
+}
+
+func TestMessageRenderAlternativeAttachment(t *testing.T) {
+	f, _ := os.Open("testdata/mime-alternative-attachment.txt")
+	msg, err := NewMessage(f)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	m, err := msg.Render([]byte(DefaultMessageTemplate))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	expected := `this is the body text`
+
+	if string(m) != expected {
+		t.Fatalf("got:\n%s\nexpected:\n%s\n", m, expected)
+	}
+}
+
 func TestMessageRenderAlternative(t *testing.T) {
 	f, _ := os.Open("testdata/mime-alternative-datamotion.txt")
 	msg, err := NewMessage(f)
@@ -77,7 +167,7 @@ This is the body text of a sample message.`
 }
 
 func TestMessageRenderMixedMS(t *testing.T) {
-	f, _ := os.Open("testdata/mime-mixed-ms.txt")
+	f, _ := os.Open("testdata/mime-alternative-html.txt")
 	msg, err := NewMessage(f)
 	if err != nil {
 		t.Fatal(err.Error())
