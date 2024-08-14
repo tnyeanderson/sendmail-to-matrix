@@ -9,20 +9,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "sendmail-to-matrix",
 	Short: "Read an email message from STDIN and forward it to a Matrix room",
-	Long: `
-A server, token, and room must be set either using a config file or via command-line parameters.
-
-Config file format (JSON):
-{
-  "server": "https://matrix.example.org",
-  "token": "<access token>",
-  "room": "!roomid:homeservername",
-  "preface": "Preface to message",
-	"skips": ["Subject: Hello", "you've won [0-9]+ dollars"]
-}
-
-`,
-	RunE: forwardCmd.RunE,
+	RunE:  forwardCmd.RunE,
 }
 
 func Execute() {
@@ -46,5 +33,5 @@ func init() {
 	pf.StringArray("skip", []string{}, "Regex pattern that will skip sending a message if it matches")
 	pf.String("token", "", "Token used to send non-encrypted messages")
 	pf.String("db-pass", "", "Password used to secure the state database for encrypted messaging")
-	config.BindPFlags(pf)
+	viperConf.BindPFlags(pf)
 }

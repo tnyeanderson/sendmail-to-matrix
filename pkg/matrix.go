@@ -41,8 +41,9 @@ func GetToken(server, user, password string) (string, error) {
 	return "", fmt.Errorf("Failed to unmarshal access_token from response")
 }
 
-func getTransactionID() (string, error) {
-	// Get a 10 character random string to use as a transaction ID (nonce)
+// generateTransactionID generates a 10 character random string to use as a
+// matrix transaction ID (nonce).
+func generateTransactionID() (string, error) {
 	length := float64(10)
 	min := int64(math.Pow(10, length-1))
 	max := int64(math.Pow(10, length) - 1)

@@ -17,11 +17,12 @@ import (
 )
 
 // DefaultMessageTemplate is the default template used to render messages.
-const DefaultMessageTemplate = `{{.Preface}}
-Subject: {{.Subject}}
-
-{{.Body}}
-{{.Epilogue}}`
+const DefaultMessageTemplate = `
+{{- if .Preface }}{{ println .Preface }}{{ end -}}
+{{- if .Subject }}{{ printf "Subject: %s\n" .Subject }}{{ end -}}
+{{- if .Body }}{{ println .Body }}{{ end -}}
+{{- if .Epilogue }}{{ println .Epilogue }}{{ end -}}
+`
 
 // Message represents a matrix message.
 type Message struct {
@@ -51,7 +52,7 @@ func NewMessage(r io.Reader) (*Message, error) {
 }
 
 // Render generates the message text to be sent based on a Message and a go
-// template.
+// template. Leading and trailing newlines are trimmed.
 func (m *Message) Render(templateText []byte) ([]byte, error) {
 	name := "stm"
 
@@ -67,7 +68,7 @@ func (m *Message) Render(templateText []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	return out.Bytes(), nil
+	return bytes.TrimSpace(out.Bytes()), nil
 }
 
 // FilterMessage returns true if the message should be forwarded to matrix and

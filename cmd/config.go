@@ -11,7 +11,7 @@ import (
 
 const DefaultConfigDir = "/etc/sendmail-to-matrix"
 
-var config = viper.New()
+var viperConf = viper.New()
 
 type cliConfig struct {
 	ConfigDir          string `mapstructure:"config-dir"`
@@ -30,16 +30,16 @@ type cliConfig struct {
 
 func getConfig() (*cliConfig, error) {
 	// Read from file
-	configFile := config.GetString("config-file")
+	configFile := viperConf.GetString("config-file")
 	if configFile == "" {
-		configFile = filepath.Join(config.GetString("config-dir"), "config.json")
+		configFile = filepath.Join(viperConf.GetString("config-dir"), "config.json")
 	}
 	r, err := os.Open(configFile)
 	if err != nil {
 		return nil, err
 	}
-	config.SetConfigType("json")
-	if err := config.ReadConfig(r); err != nil {
+	viperConf.SetConfigType("json")
+	if err := viperConf.ReadConfig(r); err != nil {
 		// Ignore if config file not found
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			return nil, err
@@ -47,7 +47,7 @@ func getConfig() (*cliConfig, error) {
 	}
 
 	c := &cliConfig{}
-	if err := config.Unmarshal(c); err != nil {
+	if err := viperConf.Unmarshal(c); err != nil {
 		return nil, err
 	}
 
@@ -63,7 +63,7 @@ func getConfig() (*cliConfig, error) {
 }
 
 func init() {
-	config.RegisterAlias("skips", "skip")
-	config.SetDefault("config-dir", DefaultConfigDir)
-	config.SetDefault("template", pkg.DefaultMessageTemplate)
+	viperConf.RegisterAlias("skips", "skip")
+	viperConf.SetDefault("config-dir", DefaultConfigDir)
+	viperConf.SetDefault("template", pkg.DefaultMessageTemplate)
 }

@@ -14,8 +14,7 @@ import (
 	"maunium.net/go/mautrix/id"
 )
 
-// UnencryptedClient sends unencrypted messages to
-// a matrix room.
+// UnencryptedClient sends unencrypted messages to a matrix room.
 type UnencryptedClient struct {
 	Server string
 	Token  string
@@ -28,11 +27,10 @@ func NewUnencryptedClient(server, token string) (*UnencryptedClient, error) {
 	}, nil
 }
 
-// SendMessage sends an unencrypted message to a
-// matrix room.
+// SendMessage sends an unencrypted message to a matrix room.
 func (c *UnencryptedClient) SendMessage(ctx context.Context, room string, message []byte) error {
 	urlFmt := "%s/_matrix/client/v3/rooms/%s/send/m.room.message/%s"
-	transactionID, err := getTransactionID()
+	transactionID, err := generateTransactionID()
 	url := fmt.Sprintf(urlFmt, c.Server, room, transactionID)
 	body := bytes.NewBuffer([]byte{})
 	enc := json.NewEncoder(body)
@@ -56,8 +54,7 @@ func (c *UnencryptedClient) SendMessage(ctx context.Context, room string, messag
 	return err
 }
 
-// EncryptedClient sends encrypted messages to
-// a matrix room.
+// EncryptedClient sends encrypted messages to a matrix room.
 type EncryptedClient struct {
 	hicli  *hicli.HiClient
 	synced *bool
@@ -83,8 +80,7 @@ func NewEncryptedClient(ctx context.Context, dbPath string, picklePass string, l
 	return c, nil
 }
 
-// SendMessage sends an encrypted message to a
-// matrix room.
+// SendMessage sends an encrypted message to a matrix room.
 func (c *EncryptedClient) SendMessage(ctx context.Context, room string, message []byte) error {
 	userID, err := c.hicli.DB.Account.GetFirstUserID(ctx)
 	if err != nil {
@@ -113,10 +109,9 @@ func (c *EncryptedClient) SendMessage(ctx context.Context, room string, message 
 	return nil
 }
 
-// LoginAndVerify authenticates a user and performs
-// device verification, allowing encrypted
-// messages. It should only need to be run once to
-// during initial setup.
+// LoginAndVerify authenticates a user and performs device verification,
+// allowing encrypted messages. It should only need to be run once to during
+// initial setup.
 func (c *EncryptedClient) LoginAndVerify(ctx context.Context, server, user, password, recoveryCode, deviceName string) error {
 	hicli.InitialDeviceDisplayName = deviceName
 	if err := c.hicli.Start(ctx, id.UserID(user), nil); err != nil {
