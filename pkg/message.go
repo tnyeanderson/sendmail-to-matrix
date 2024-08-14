@@ -17,7 +17,11 @@ import (
 )
 
 // DefaultMessageTemplate is the default template used to render messages.
-const DefaultMessageTemplate = "{{.Preface}}{{.Subject}}\n\n{{.Body}}{{.Epilogue}}"
+const DefaultMessageTemplate = `{{.Preface}}
+Subject: {{.Subject}}
+
+{{.Body}}
+{{.Epilogue}}`
 
 // Message represents a matrix message.
 type Message struct {
