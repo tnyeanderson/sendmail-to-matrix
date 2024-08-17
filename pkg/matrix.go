@@ -28,8 +28,7 @@ func GetToken(server, user, password string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	client := &http.Client{}
-	res, err := client.Post(uri, "application/json; charset=UTF-8", bytes.NewBuffer(body))
+	res, err := http.Post(uri, "application/json; charset=UTF-8", bytes.NewBuffer(body))
 	if err != nil {
 		return "", err
 	}

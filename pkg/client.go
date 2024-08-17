@@ -31,6 +31,9 @@ func NewUnencryptedClient(server, token string) (*UnencryptedClient, error) {
 func (c *UnencryptedClient) SendMessage(ctx context.Context, room string, message []byte) error {
 	urlFmt := "%s/_matrix/client/v3/rooms/%s/send/m.room.message/%s"
 	transactionID, err := generateTransactionID()
+	if err != nil {
+		return err
+	}
 	url := fmt.Sprintf(urlFmt, c.Server, room, transactionID)
 	body := bytes.NewBuffer([]byte{})
 	enc := json.NewEncoder(body)
@@ -72,7 +75,6 @@ func NewEncryptedClient(ctx context.Context, dbPath string, picklePass string, l
 	c.hicli = hicli.New(rawDB, nil, logger, []byte(picklePass), func(a any) {
 		switch a.(type) {
 		case *hicli.SyncComplete:
-			fmt.Println("setting synced")
 			*c.synced = true
 		}
 	})
