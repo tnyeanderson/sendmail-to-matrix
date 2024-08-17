@@ -4,12 +4,12 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "sendmail-to-matrix",
 	Short: "Read an email message from STDIN and forward it to a Matrix room",
-	RunE:  forwardCmd.RunE,
 }
 
 func Execute() {
@@ -19,19 +19,16 @@ func Execute() {
 	}
 }
 
-func init() {
-	// Persistent flags
-	pf := rootCmd.PersistentFlags()
-	pf.StringP("config-dir", "c", DefaultConfigDir, "Path to config directory")
-	pf.Bool("no-encrypt", false, "Do not use encryption when sending messages")
-	pf.String("config-file", "", "(deprecated) Path to config file")
-	pf.String("room", "", "Matrix Room ID")
-	pf.String("server", "", "Matrix server")
-	pf.String("preface", "", "Preface the matrix message with text")
-	pf.String("epilogue", "", "Append the matrix message with text")
-	pf.String("template", "", "Template string used to render the Message")
-	pf.StringArray("skip", []string{}, "Regex pattern that will skip sending a message if it matches")
-	pf.String("token", "", "Token used to send non-encrypted messages")
-	pf.String("db-pass", "", "Password used to secure the state database for encrypted messaging")
-	viperConf.BindPFlags(pf)
+func rootFlags(f *pflag.FlagSet) {
+	f.StringP(flagConfigDir, "c", DefaultConfigDir, "Path to config directory, set to explicit empty string to skip reading all config files")
+	f.String(flagConfigFile, "", "Path to JSON config file, defaults to config.json in the --config-dir path")
+	f.Bool(flagNoEncrypt, false, "Do not use encryption when sending messages")
+	f.String(flagRoom, "", "Matrix Room ID")
+	f.String(flagServer, "", "Matrix home server URI")
+	f.String(flagPreface, "", "Preface the matrix message with a line of text")
+	f.String(flagEpilogue, "", "Append the matrix message with a line of text")
+	f.String(flagTemplate, "", "Alternative template string used to render the message")
+	f.StringArray(flagSkip, []string{}, "Regex patterns that will skip sending a rendered message if any match")
+	f.String(flagToken, "", "Token used to send non-encrypted messages")
+	f.String(flagDatabasePassword, "", "Password used to secure the state database for encrypted messaging")
 }

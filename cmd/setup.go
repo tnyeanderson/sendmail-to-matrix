@@ -3,10 +3,7 @@ package cmd
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -22,9 +19,11 @@ var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Interactive configuration utility",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		c, err := getConfig()
+		c, err := getConfig(viperConf)
 		if err != nil {
-			return err
+			if _, isPathError := err.(*os.PathError); !isPathError {
+				return err
+			}
 		}
 
 		if c.EncryptionDisabled {
@@ -35,6 +34,9 @@ var setupCmd = &cobra.Command{
 	},
 }
 
+// ask prompts the user for input and returns that input as a string.  If the
+// user does not enter a value, defaultValue is returned. For convenience, it
+// panics if it can't read from stdin.
 func ask(prompt, defaultValue string) string {
 	if defaultValue != "" {
 		prompt = fmt.Sprintf("%s [%s]: ", prompt, defaultValue)
@@ -45,6 +47,9 @@ func ask(prompt, defaultValue string) string {
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Print(prompt)
 	scanner.Scan()
+	if err := scanner.Err(); err != nil {
+		panic("failed to read from stdin")
+	}
 	answer := scanner.Text()
 	if answer == "" {
 		return defaultValue
@@ -53,69 +58,80 @@ func ask(prompt, defaultValue string) string {
 }
 
 func setup(config *cliConfig) error {
-	server := ask("Matrix home server", "https://matrix.org")
-	user := ask("Matrix username", "")
-	password := ask("Matrix password", "")
-	recoveryCode := ask("Recovery code (used for device verification)", "")
-	deviceName := ask("Device display name", "sendmail-to-matrix")
-	picklePass := ask("Database encryption passphrase", "sendmail-to-matrix")
-
 	if err := os.MkdirAll(config.ConfigDir, 0750); err != nil {
 		return err
 	}
+
+	if cfDir := filepath.Dir(config.ConfigFile); config.ConfigDir != cfDir {
+		if err := os.MkdirAll(cfDir, 0750); err != nil {
+			return err
+		}
+	}
+
+	f, err := os.OpenFile(config.ConfigFile, os.O_RDWR|os.O_CREATE, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if config.Server == "" {
+		config.Server = ask("Matrix home server", "https://matrix.org")
+	}
+
+	user := ask("Matrix username", "")
+	password := ask("Matrix password (not saved)", "")
+	recoveryCode := ask("Recovery code (not saved, used for device verification)", "")
+	deviceName := ask("Device display name", "sendmail-to-matrix")
+
+	if config.DatabasePassword == "" {
+		config.DatabasePassword = ask("Database encryption passphrase", "sendmail-to-matrix")
+	}
+
+	if err := config.writeTo(f); err != nil {
+		return err
+	}
+
 	dbPath := filepath.Join(config.ConfigDir, "stm.db")
 	ctx := context.Background()
 	logger := zerolog.New(os.Stderr)
-	c, err := pkg.NewEncryptedClient(ctx, dbPath, picklePass, logger)
+	c, err := pkg.NewEncryptedClient(ctx, dbPath, config.DatabasePassword, logger)
 	if err != nil {
 		return err
 	}
-	return c.LoginAndVerify(ctx, server, user, password, recoveryCode, deviceName)
+	return c.LoginAndVerify(ctx, config.Server, user, password, recoveryCode, deviceName)
 }
 
 func setupWithoutEncryption(config *cliConfig) error {
-	// Prompt user
-	server := ask("Matrix home server", "https://matrix.org")
-	user := ask("Matrix username", "")
-	password := ask("Matrix password", "")
-	room := ask("Matrix room", "")
-	preface := ask("Message preface", "")
-
-	configFile := filepath.Join(config.ConfigDir, "config.json")
-
-	// Fetch access_token
-	token, err := pkg.GetToken(server, user, password)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Generate json
-	data := map[string]string{
-		"server":  server,
-		"token":   token,
-		"room":    room,
-		"preface": preface,
-	}
-	b, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Print the result
-	fmt.Printf("\n%s\n\n", string(b))
-
-	// Save to file
-	if err := os.MkdirAll(config.ConfigDir, 0750); err != nil {
+	if err := os.MkdirAll(filepath.Dir(config.ConfigFile), 0750); err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(configFile, b, 0600)
+
+	f, err := os.OpenFile(config.ConfigFile, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
-		log.Fatal(err)
+		return err
+	}
+	defer f.Close()
+
+	if config.Server == "" {
+		config.Server = ask("Matrix home server", "https://matrix.org")
 	}
 
-	// Notify user
+	if config.Token == "" {
+		user := ask("Matrix username", "")
+		password := ask("Matrix password (not saved)", "")
+		token, err := pkg.GetToken(config.Server, user, password)
+		if err != nil {
+			return err
+		}
+		config.Token = token
+	}
+
+	if err := config.writeTo(f); err != nil {
+		return err
+	}
+
 	fmt.Println("")
-	fmt.Printf("Saved config to: %s\n", configFile)
+	fmt.Printf("Saved config to: %s\n", config.ConfigFile)
 	return nil
 }
 

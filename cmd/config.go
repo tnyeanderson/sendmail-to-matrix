@@ -1,44 +1,81 @@
 package cmd
 
 import (
+	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"github.com/tnyeanderson/sendmail-to-matrix/pkg"
 )
 
 const DefaultConfigDir = "/etc/sendmail-to-matrix"
 
-var viperConf = viper.New()
+const (
+	flagConfigDir        = "config-dir"
+	flagConfigFile       = "config-file"
+	flagNoEncrypt        = "no-encrypt"
+	flagRoom             = "room"
+	flagServer           = "server"
+	flagPreface          = "preface"
+	flagEpilogue         = "epilogue"
+	flagTemplate         = "template"
+	flagSkip             = "skip"
+	flagToken            = "token"
+	flagDatabasePassword = "db-pass"
+)
+
+var viperConf *viper.Viper
 
 type cliConfig struct {
 	ConfigDir          string `mapstructure:"config-dir"`
+	ConfigFile         string `mapstructure:"config-file"`
 	DatabasePassword   string `mapstructure:"db-pass"`
 	EncryptionDisabled bool   `mapstructure:"no-encrypt"`
 	Epilogue           string
 	Preface            string
 	Room               string
 	Server             string
-	Skips              []string
+	Skip               []string
 	Template           string
 	Token              string
 
 	skipsRegexp []*regexp.Regexp
 }
 
-func getConfig() (*cliConfig, error) {
-	if err := readViperConfigFromFile(); err != nil {
-		return nil, err
+func (c *cliConfig) writeTo(w io.Writer) error {
+	b, err := json.MarshalIndent(c, "", "  ")
+	if err != nil {
+		return err
+	}
+	if _, err := w.Write(b); err != nil {
+		return err
+	}
+	return nil
+}
+
+func getConfig(v *viper.Viper) (*cliConfig, error) {
+	configFile := getConfigFilePath(v)
+	v.Set(flagConfigFile, configFile)
+
+	if configFile != "" {
+		r, err := os.Open(configFile)
+		if err != nil {
+			return nil, err
+		}
+		if err := v.ReadConfig(r); err != nil {
+			return nil, err
+		}
 	}
 
 	c := &cliConfig{}
-	if err := viperConf.Unmarshal(c); err != nil {
+	if err := v.Unmarshal(c); err != nil {
 		return nil, err
 	}
 
-	for _, skip := range c.Skips {
+	for _, skip := range c.Skip {
 		r, err := regexp.Compile(skip)
 		if err != nil {
 			return nil, err
@@ -49,35 +86,30 @@ func getConfig() (*cliConfig, error) {
 	return c, nil
 }
 
-func readViperConfigFromFile() error {
-	configDir := viperConf.GetString("config-dir")
-	configFile := viperConf.GetString("config-file")
+func getConfigFilePath(v *viper.Viper) string {
+	configFile := v.GetString(flagConfigFile)
+	if configFile != "" {
+		return configFile
+	}
 
+	configDir := v.GetString(flagConfigDir)
 	if configDir == "" {
-		// Skip trying to read config file if configDir is explicitly empty
-		return nil
+		return ""
 	}
 
-	configFile := viperConf.GetString("config-file")
-	if configFile == "" {
-		configFile = filepath.Join(configDir, "config.json")
-	}
+	return filepath.Join(configDir, "config.json")
+}
 
-	r, err := os.Open(configFile)
-	if err != nil {
-		return err
-	}
-
-	viperConf.SetConfigType("json")
-	return viperConf.ReadConfig(r)
+func viperConfInit(v *viper.Viper, f *pflag.FlagSet) {
+	v.SetConfigType("json")
+	rootFlags(f)
+	v.BindPFlags(f)
+	v.SetEnvPrefix("stm")
+	v.AutomaticEnv()
+	v.SetDefault(flagConfigDir, DefaultConfigDir)
 }
 
 func init() {
-	// Set default values
-	viperConf.SetDefault("config-dir", DefaultConfigDir)
-	viperConf.SetDefault("template", pkg.DefaultMessageTemplate)
-
-	// This allows us to save the data in the Skips slice in the struct, but
-	// provide multiple singular "--skip" flags.
-	viperConf.RegisterAlias("skips", "skip")
+	viperConf = viper.New()
+	viperConfInit(viperConf, rootCmd.PersistentFlags())
 }
