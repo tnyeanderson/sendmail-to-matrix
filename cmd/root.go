@@ -19,7 +19,7 @@ func Execute() {
 	}
 }
 
-func rootFlags(f *pflag.FlagSet) {
+func rootFlagsInit(f *pflag.FlagSet) {
 	f.StringP(flagConfigDir, "c", DefaultConfigDir, "Path to config directory, set to explicit empty string to skip reading all config files")
 	f.String(flagConfigFile, "", "Path to JSON config file, defaults to config.json in the --config-dir path")
 	f.Bool(flagNoEncrypt, false, "Do not use encryption when sending messages")

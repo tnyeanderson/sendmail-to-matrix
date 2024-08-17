@@ -71,17 +71,6 @@ func (m *Message) Render(templateText []byte) ([]byte, error) {
 	return bytes.TrimSpace(out.Bytes()), nil
 }
 
-// FilterMessage returns true if the message should be forwarded to matrix and
-// false if the message should be skipped/ignored.
-func FilterMessage(message string, skips []*regexp.Regexp) bool {
-	for _, r := range skips {
-		if r.MatchString(message) {
-			return false
-		}
-	}
-	return true
-}
-
 func parseBody(m *mail.Message) (string, error) {
 	messageType, params := getMessageType(m)
 	if strings.HasPrefix(messageType, "multipart/") {

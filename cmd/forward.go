@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
@@ -31,7 +32,7 @@ var forwardCmd = &cobra.Command{
 			return err
 		}
 
-		if !pkg.FilterMessage(string(message), c.skipsRegexp) {
+		if !filterMessage(string(message), c.skipsRegexp) {
 			fmt.Println("forwarding skipped due to filters")
 		}
 
@@ -52,24 +53,35 @@ func buildMessage(r io.Reader, template, preface, epilogue string) ([]byte, erro
 	return m.Render([]byte(template))
 }
 
+// filterMessage returns true if the message should be forwarded to matrix and
+// false if the message should be skipped/ignored.
+func filterMessage(message string, skips []*regexp.Regexp) bool {
+	for _, r := range skips {
+		if r.MatchString(message) {
+			return false
+		}
+	}
+	return true
+}
+
 func forward(config *cliConfig, room string, message []byte) error {
 	dbPath := filepath.Join(config.ConfigDir, "stm.db")
 	ctx := context.Background()
 	logger := zerolog.New(os.Stderr)
-	c, err := pkg.NewEncryptedClient(ctx, dbPath, config.DatabasePassword, logger)
+	client, err := pkg.NewEncryptedClient(ctx, dbPath, config.DatabasePassword, logger)
 	if err != nil {
 		return err
 	}
-	return c.SendMessage(ctx, room, message)
+	return client.SendMessage(ctx, room, message)
 }
 
 func forwardWithoutEncryption(config *cliConfig, room string, message []byte) error {
 	ctx := context.Background()
-	c, err := pkg.NewUnencryptedClient(config.Server, config.Token)
+	client, err := pkg.NewUnencryptedClient(config.Server, config.Token)
 	if err != nil {
 		return err
 	}
-	return c.SendMessage(ctx, room, message)
+	return client.SendMessage(ctx, room, message)
 }
 
 func init() {

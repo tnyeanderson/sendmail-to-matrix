@@ -21,6 +21,7 @@ var setupCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := getConfig(viperConf)
 		if err != nil {
+			// Ignore PathErrors since the file may not exist yet
 			if _, isPathError := err.(*os.PathError); !isPathError {
 				return err
 			}
@@ -94,11 +95,11 @@ func setup(config *cliConfig) error {
 	dbPath := filepath.Join(config.ConfigDir, "stm.db")
 	ctx := context.Background()
 	logger := zerolog.New(os.Stderr)
-	c, err := pkg.NewEncryptedClient(ctx, dbPath, config.DatabasePassword, logger)
+	client, err := pkg.NewEncryptedClient(ctx, dbPath, config.DatabasePassword, logger)
 	if err != nil {
 		return err
 	}
-	return c.LoginAndVerify(ctx, config.Server, user, password, recoveryCode, deviceName)
+	return client.LoginAndVerify(ctx, config.Server, user, password, recoveryCode, deviceName)
 }
 
 func setupWithoutEncryption(config *cliConfig) error {

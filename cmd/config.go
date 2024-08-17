@@ -101,8 +101,8 @@ func getConfigFilePath(v *viper.Viper) string {
 }
 
 func viperConfInit(v *viper.Viper, f *pflag.FlagSet) {
+	rootFlagsInit(f)
 	v.SetConfigType("json")
-	rootFlags(f)
 	v.BindPFlags(f)
 	v.SetEnvPrefix("stm")
 	v.AutomaticEnv()
