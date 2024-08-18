@@ -11,7 +11,11 @@ import (
 	"github.com/spf13/viper"
 )
 
-const DefaultConfigDir = "/etc/sendmail-to-matrix"
+const (
+	DefaultConfigDir         = "/etc/sendmail-to-matrix"
+	DefaultDeviceDisplayName = "sendmail-to-matrix"
+	DefaultServer            = "https://matrix.org"
+)
 
 const (
 	flagConfigDir        = "config-dir"
@@ -30,17 +34,17 @@ const (
 var viperConf *viper.Viper
 
 type cliConfig struct {
-	ConfigDir          string `mapstructure:"config-dir"`
-	ConfigFile         string `mapstructure:"config-file"`
-	DatabasePassword   string `mapstructure:"db-pass"`
-	EncryptionDisabled bool   `mapstructure:"no-encrypt"`
-	Epilogue           string
-	Preface            string
-	Room               string
-	Server             string
-	Skip               []string
-	Template           string
-	Token              string
+	ConfigDir          string   `json:"config-dir,omitempty" mapstructure:"config-dir,omitempty"`
+	ConfigFile         string   `json:"config-file,omitempty" mapstructure:"config-file,omitempty"`
+	DatabasePassword   string   `json:"db-pass,omitempty" mapstructure:"db-pass,omitempty"`
+	EncryptionDisabled bool     `json:"no-encrypt,omitempty" mapstructure:"no-encrypt,omitempty"`
+	Epilogue           string   `json:"epilogue,omitempty" mapstructure:",omitempty"`
+	Preface            string   `json:"preface,omitempty" mapstructure:",omitempty"`
+	Room               string   `json:"room,omitempty" mapstructure:",omitempty"`
+	Server             string   `json:"server,omitempty" mapstructure:",omitempty"`
+	Skip               []string `json:"skip,omitempty" mapstructure:",omitempty"`
+	Template           string   `json:"template,omitempty" mapstructure:",omitempty"`
+	Token              string   `json:"token,omitempty" mapstructure:",omitempty"`
 
 	skipsRegexp []*regexp.Regexp
 }
@@ -56,16 +60,12 @@ func (c *cliConfig) writeTo(w io.Writer) error {
 	return nil
 }
 
-func getConfig(v *viper.Viper) (*cliConfig, error) {
+func getConfig(v *viper.Viper, ignoreConfigFileErrors bool) (*cliConfig, error) {
 	configFile := getConfigFilePath(v)
 	v.Set(flagConfigFile, configFile)
 
 	if configFile != "" {
-		r, err := os.Open(configFile)
-		if err != nil {
-			return nil, err
-		}
-		if err := v.ReadConfig(r); err != nil {
+		if err := readConfigFile(v, configFile); err != nil && !ignoreConfigFileErrors {
 			return nil, err
 		}
 	}
@@ -98,6 +98,17 @@ func getConfigFilePath(v *viper.Viper) string {
 	}
 
 	return filepath.Join(configDir, "config.json")
+}
+
+func readConfigFile(v *viper.Viper, path string) error {
+	r, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	if err := v.ReadConfig(r); err != nil {
+		return err
+	}
+	return nil
 }
 
 func viperConfInit(v *viper.Viper, f *pflag.FlagSet) {

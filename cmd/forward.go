@@ -17,7 +17,7 @@ var forwardCmd = &cobra.Command{
 	Use:   "forward",
 	Short: "Read an email message from stdin and forward it to a Matrix room",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		c, err := getConfig(viperConf)
+		c, err := getConfig(viperConf, false)
 		if err != nil {
 			return err
 		}

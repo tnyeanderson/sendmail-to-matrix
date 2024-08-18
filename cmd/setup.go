@@ -19,12 +19,9 @@ var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Interactive configuration utility",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		c, err := getConfig(viperConf)
+		c, err := getConfig(viperConf, true)
 		if err != nil {
-			// Ignore PathErrors since the file may not exist yet
-			if _, isPathError := err.(*os.PathError); !isPathError {
-				return err
-			}
+			return err
 		}
 
 		if c.EncryptionDisabled {
@@ -76,7 +73,7 @@ func setup(config *cliConfig) error {
 	defer f.Close()
 
 	if config.Server == "" {
-		config.Server = ask("Matrix home server", "https://matrix.org")
+		config.Server = ask("Matrix home server", DefaultServer)
 	}
 
 	user := ask("Matrix username", "")
@@ -85,7 +82,7 @@ func setup(config *cliConfig) error {
 	deviceName := ask("Device display name", "sendmail-to-matrix")
 
 	if config.DatabasePassword == "" {
-		config.DatabasePassword = ask("Database encryption passphrase", "sendmail-to-matrix")
+		config.DatabasePassword = ask("Database encryption passphrase", DefaultDeviceDisplayName)
 	}
 
 	if err := config.writeTo(f); err != nil {
@@ -114,7 +111,7 @@ func setupWithoutEncryption(config *cliConfig) error {
 	defer f.Close()
 
 	if config.Server == "" {
-		config.Server = ask("Matrix home server", "https://matrix.org")
+		config.Server = ask("Matrix home server", DefaultServer)
 	}
 
 	if config.Token == "" {
