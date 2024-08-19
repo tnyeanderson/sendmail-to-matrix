@@ -1,0 +1,31 @@
+Received: by sphinx (mbox mlande) (with Cubic Circle's cucipop (v1...
+X-From_: bob@internet.com Wed Aug 20 19:40:22 2003
+Return-Path: <bob@internet.com>
+Received: from psmtp.com (exprod5mx37.postini.com [12.158.34.194])...
+Message-Id: <200308210240.h7L2e5A0016623@sphinx.got.net>
+Received: from source ([69.9.251.177]) by exprod5mx37.postini.com ...
+From: "Bob Example" <bob@internet.com>
+To: "Alice Example" <alice@internet.com>
+Date: Wed, 20 Aug 2003 16:02:43 -0500
+Subject: Test message
+MIME-Version: 1.0
+Content-Type: multipart/mixed;
+        boundary="XXXXboundary text"
+
+This is a multipart message in MIME format.
+
+--XXXXboundary text
+Content-Type: text/plain
+
+the body
+--XXXXboundary text
+Content-Type: image/gif
+Content-Transfer-Encoding: Base64
+Content-Disposition: attachment; filename=smile.gif
+
+/9j/4AAQSkZJRgABAQEAYABgAAD/4QAWRXhpZgAASUkqAAgAAAAAAAAAAAD/2wBDAA...
+BwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PT...
+...
+X/76NHnS/wDPV/8Avo0f2Nh+7+9f5B/aNXsv6+Z//9k=
+
+--XXXXboundary text--

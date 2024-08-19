@@ -1,63 +1,92 @@
-package main
+package pkg
 
 import (
 	"bytes"
 	"fmt"
 	"html"
 	"io"
-	"log"
 	"mime"
 	"mime/multipart"
 	"net/mail"
 	"regexp"
 	"strings"
+	"text/template"
 
+	"github.com/Masterminds/sprig"
 	"github.com/microcosm-cc/bluemonday"
 )
 
-func buildPreface() (p string) {
-	p = config["preface"]
-	if p != "" {
-		p = p + "\n"
-	}
-	return
+// DefaultMessageTemplate is the default template used to render messages.
+const DefaultMessageTemplate = `
+{{- if .Preface }}{{ println .Preface }}{{ end -}}
+{{- if .Subject }}{{ printf "Subject: %s\n" .Subject }}{{ end -}}
+{{- if .Body }}{{ println .Body }}{{ end -}}
+{{- if .Epilogue }}{{ println .Epilogue }}{{ end -}}
+`
+
+// Message represents a matrix message.
+type Message struct {
+	Subject  string
+	Body     string
+	Preface  string
+	Epilogue string
 }
 
-func buildSubject(m *mail.Message) (s string) {
-	s = m.Header.Get("Subject")
-	if s != "" {
-		s = "Subject: " + s + "\n"
+// NewMessage reads an email from an io.Reader (usually stdin) and returns a
+// Message with the data.
+func NewMessage(r io.Reader) (*Message, error) {
+	m := &Message{}
+	e, err := mail.ReadMessage(r)
+	if err != nil {
+		return nil, err
 	}
-	return
+	m.Subject = e.Header.Get("Subject")
+
+	body, err := parseBody(e)
+	if err != nil {
+		return nil, err
+	}
+	m.Body = body
+
+	return m, nil
 }
 
-func buildBody(m *mail.Message) string {
+// Render generates the message text to be sent based on a Message and a go
+// template. Leading and trailing newlines are trimmed.
+func (m *Message) Render(templateText []byte) ([]byte, error) {
+	name := "stm"
+
+	// Create template
+	t, err := template.New(name).Funcs(sprig.FuncMap()).Parse(string(templateText))
+	if err != nil {
+		return nil, err
+	}
+
+	// Execute template
+	out := bytes.Buffer{}
+	if err := t.ExecuteTemplate(&out, name, *m); err != nil {
+		return nil, err
+	}
+
+	return bytes.TrimSpace(out.Bytes()), nil
+}
+
+func parseBody(m *mail.Message) (string, error) {
 	messageType, params := getMessageType(m)
 	if strings.HasPrefix(messageType, "multipart/") {
 		boundary := params["boundary"]
 		if boundary != "" {
 			content, err := parseMultipart(m, messageType, boundary)
 			if err == nil {
-				return string(content)
+				return string(content), nil
 			}
 		}
 	}
 	b, err := io.ReadAll(m.Body)
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
-	return string(b)
-}
-
-func buildMessage(email io.Reader) (message string) {
-	m, err := mail.ReadMessage(email)
-	if err != nil {
-		log.Fatal(err)
-	}
-	message += buildPreface()
-	message += buildSubject(m)
-	message += buildBody(m)
-	return
+	return string(b), nil
 }
 
 func removeHtmlTags(input []byte) []byte {
@@ -84,6 +113,7 @@ func parseMultipart(m *mail.Message, messageType, boundary string) ([]byte, erro
 	return nil, fmt.Errorf("Not a recognized multipart message")
 }
 
+// readAlternativeParts returns the content contained in the alternative parts.
 // Only text/plain and text/html are recognized. In defiance of MIME (RFC2046),
 // text/plain is preferred.
 func readAlternativeParts(r *multipart.Reader) ([]byte, error) {
@@ -148,8 +178,8 @@ func readMixedParts(r *multipart.Reader) ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-// Get the top-level media type and parameters. If not set, use the default
-// according to RFC2045 5.2
+// getMessageType returns the top-level media type and parameters. If not set,
+// the default according to RFC2045 5.2 (text/plain) is returned.
 func getMessageType(m *mail.Message) (contentType string, params map[string]string) {
 	c := m.Header["Content-Type"]
 	if len(c) > 0 {
@@ -159,13 +189,15 @@ func getMessageType(m *mail.Message) (contentType string, params map[string]stri
 	return "text/plain", map[string]string{"charset": "us-ascii"}
 }
 
+// getPartType returns the content type of the part. If not set, the default
+// according to RFC2045 5.2 (text/plain) is returned.
 func getPartType(p *multipart.Part) string {
 	c := p.Header["Content-Type"]
 	if len(c) > 0 {
 		t, _, _ := mime.ParseMediaType(c[0])
 		return t
 	}
-	return ""
+	return "text/plain"
 }
 
 func partIsAttachment(p *multipart.Part) (bool, map[string]string) {
