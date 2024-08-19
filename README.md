@@ -63,7 +63,7 @@ page. Then, ensure that `sendmail-to-matrix` is executable:
 chmod +x /path/to/sendmail-to-matrix
 ```
 
-Alternatively, build it yourself:
+Alternatively, use `go install` or build it yourself:
 
 ```bash
 git clone https://github.com/tnyeanderson/sendmail-to-matrix.git
