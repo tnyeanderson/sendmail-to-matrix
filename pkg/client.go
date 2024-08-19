@@ -12,6 +12,8 @@ import (
 	"maunium.net/go/mautrix/event"
 	"maunium.net/go/mautrix/hicli"
 	"maunium.net/go/mautrix/id"
+
+	_ "github.com/glebarez/go-sqlite"
 )
 
 // UnencryptedClient sends unencrypted messages to a matrix room.
@@ -65,7 +67,7 @@ type EncryptedClient struct {
 
 func NewEncryptedClient(ctx context.Context, dbPath string, picklePass string, logger zerolog.Logger) (*EncryptedClient, error) {
 	c := &EncryptedClient{}
-	rawDB, err := dbutil.NewWithDialect(dbPath, "sqlite3-fk-wal")
+	rawDB, err := dbutil.NewWithDialect(dbPath, "sqlite")
 	if err != nil {
 		return nil, err
 	}

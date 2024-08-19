@@ -10,9 +10,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/tnyeanderson/sendmail-to-matrix/pkg"
-
-	_ "github.com/mattn/go-sqlite3"
-	_ "go.mau.fi/util/dbutil/litestream"
 )
 
 var setupCmd = &cobra.Command{
