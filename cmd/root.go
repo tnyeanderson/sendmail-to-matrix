@@ -8,8 +8,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "sendmail-to-matrix",
-	Short: "Read an email message from STDIN and forward it to a Matrix room",
+	Use:     "sendmail-to-matrix",
+	Short:   "Read an email message from STDIN and forward it to a Matrix room",
+	Version: "v0.2.0",
 }
 
 func Execute() {

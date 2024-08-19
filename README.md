@@ -2,6 +2,8 @@
 
 Forward locally received emails (admin notifications, etc) to a Matrix room.
 
+Both encrypted and unencrypted messaging is supported.
+
 THIS PROJECT IS IN ALPHA, BUT IT WORKS AND I USE IT :)
 
 ## Background
@@ -13,6 +15,41 @@ anyway).
 I wanted a minimal one-way bridge, wherein I could configure Proxmox to send
 email notifications to a local email address (`matrix@localhost` in my case)
 and the body of each email would be forwarded to my Matrix room.
+
+## Upgrading from previous versions
+
+If you've been using this program since before it supported encrypted
+messaging, thank you!
+
+In order to upgrade to later releases (`v0.2.0` and above), you'll need to make
+two changes to the `sendmail-to-matrix` command you had previously set in your
+email alias:
+
+1. Add the `forward` subcommand
+2. Add the `--no-encrypt` flag
+
+For example, if this was your old email alias config:
+
+```text
+myuser: "|/path/to/sendmail-to-matrix --config-file /path/to/config.json"
+```
+
+You should change it to this:
+
+```text
+myuser: "|/path/to/sendmail-to-matrix forward --no-encrypt --config-file /path/to/config.json"
+```
+
+> NOTE: Alternatively, you can add `"no-encrypt": true` to your JSON config
+file. However, you will still need to add the `forward` subcommand since the
+program now requires a subcommand.
+
+All other flags and config file entries are backward compatible for unencrypted
+messaging. You can also benefit from some new features, such as `epilogue` and
+`skip`!
+
+Alternatively, you can set up encrypted messaging by following the
+[configuration](#configuration) steps.
 
 ## Installation
 
@@ -37,7 +74,8 @@ CGO_ENABLED=0 go build .
 ## Configuration
 
 This program uses viper for its configuration. Values can be read from a config
-file (`config.json`) or can be provided as CLI flags.
+file (`config.json`), read from environment variables (with the `STM_` prefix),
+or provided as CLI flags.
 
 The default configuration directory is `/etc/sendmail-to-matrix`. This can be
 adjusted with the `--config-dir` flag.
@@ -77,7 +115,7 @@ Add the following line to `/etc/aliases` (or to `~/.forward`) to forward emails
 sent to `myuser@localhost`:
 
 ```bash
-myuser: "|/path/to/sendmail-to-matrix --config-file /path/to/config.json"
+myuser: "|/path/to/sendmail-to-matrix forward --config-file /path/to/config.json"
 ```
 
 > NOTE: Be sure to add `--no-encrypt` if you are not using encryption.
@@ -111,7 +149,7 @@ Alternatively, you can test with a file that contains an email in standard
 Linux mailbox form.
 
 ```bash
-cat email.txt | /path/to/sendmail-to-matrix
+cat email.txt | /path/to/sendmail-to-matrix forward
 ```
 
 You're done! Direct any administration-related emails (Proxmox notifications,
