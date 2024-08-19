@@ -46,7 +46,7 @@ func TestGetConfigFromEnv(t *testing.T) {
 	v.Set(flagConfigDir, "")
 	v.Set(flagConfigFile, "")
 
-	c, err := getConfig(v)
+	c, err := getConfig(v, true)
 	if err != nil {
 		log.Fatal(err)
 	}

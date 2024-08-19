@@ -33,7 +33,7 @@ const (
 
 var viperConf *viper.Viper
 
-type cliConfig struct {
+type config struct {
 	ConfigDir          string   `json:"config-dir,omitempty" mapstructure:"config-dir,omitempty"`
 	ConfigFile         string   `json:"config-file,omitempty" mapstructure:"config-file,omitempty"`
 	DatabasePassword   string   `json:"db-pass,omitempty" mapstructure:"db-pass,omitempty"`
@@ -49,7 +49,7 @@ type cliConfig struct {
 	skipsRegexp []*regexp.Regexp
 }
 
-func (c *cliConfig) writeTo(w io.Writer) error {
+func (c *config) writeTo(w io.Writer) error {
 	b, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return err
@@ -60,7 +60,7 @@ func (c *cliConfig) writeTo(w io.Writer) error {
 	return nil
 }
 
-func getConfig(v *viper.Viper, ignoreConfigFileErrors bool) (*cliConfig, error) {
+func getConfig(v *viper.Viper, ignoreConfigFileErrors bool) (*config, error) {
 	configFile := getConfigFilePath(v)
 	v.Set(flagConfigFile, configFile)
 
@@ -70,7 +70,7 @@ func getConfig(v *viper.Viper, ignoreConfigFileErrors bool) (*cliConfig, error) 
 		}
 	}
 
-	c := &cliConfig{}
+	c := &config{}
 	if err := v.Unmarshal(c); err != nil {
 		return nil, err
 	}

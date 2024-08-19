@@ -55,7 +55,7 @@ func ask(prompt, defaultValue string) string {
 	return answer
 }
 
-func setup(config *cliConfig) error {
+func setup(config *config) error {
 	if err := os.MkdirAll(config.ConfigDir, 0750); err != nil {
 		return err
 	}
@@ -99,7 +99,7 @@ func setup(config *cliConfig) error {
 	return client.LoginAndVerify(ctx, config.Server, user, password, recoveryCode, deviceName)
 }
 
-func setupWithoutEncryption(config *cliConfig) error {
+func setupWithoutEncryption(config *config) error {
 	if err := os.MkdirAll(filepath.Dir(config.ConfigFile), 0750); err != nil {
 		return err
 	}

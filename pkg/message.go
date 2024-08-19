@@ -113,6 +113,7 @@ func parseMultipart(m *mail.Message, messageType, boundary string) ([]byte, erro
 	return nil, fmt.Errorf("Not a recognized multipart message")
 }
 
+// readAlternativeParts returns the content contained in the alternative parts.
 // Only text/plain and text/html are recognized. In defiance of MIME (RFC2046),
 // text/plain is preferred.
 func readAlternativeParts(r *multipart.Reader) ([]byte, error) {
@@ -177,8 +178,8 @@ func readMixedParts(r *multipart.Reader) ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-// Get the top-level media type and parameters. If not set, use the default
-// according to RFC2045 5.2
+// getMessageType returns the top-level media type and parameters. If not set,
+// the default according to RFC2045 5.2 (text/plain) is returned.
 func getMessageType(m *mail.Message) (contentType string, params map[string]string) {
 	c := m.Header["Content-Type"]
 	if len(c) > 0 {
@@ -188,7 +189,8 @@ func getMessageType(m *mail.Message) (contentType string, params map[string]stri
 	return "text/plain", map[string]string{"charset": "us-ascii"}
 }
 
-// Get the content type. If not set, use the default according to RFC2045 5.2
+// getPartType returns the content type of the part. If not set, the default
+// according to RFC2045 5.2 (text/plain) is returned.
 func getPartType(p *multipart.Part) string {
 	c := p.Header["Content-Type"]
 	if len(c) > 0 {

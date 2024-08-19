@@ -64,7 +64,7 @@ func filterMessage(message string, skips []*regexp.Regexp) bool {
 	return true
 }
 
-func forward(config *cliConfig, room string, message []byte) error {
+func forward(config *config, room string, message []byte) error {
 	dbPath := filepath.Join(config.ConfigDir, "stm.db")
 	ctx := context.Background()
 	logger := zerolog.New(os.Stderr)
@@ -75,7 +75,7 @@ func forward(config *cliConfig, room string, message []byte) error {
 	return client.SendMessage(ctx, room, message)
 }
 
-func forwardWithoutEncryption(config *cliConfig, room string, message []byte) error {
+func forwardWithoutEncryption(config *config, room string, message []byte) error {
 	ctx := context.Background()
 	client, err := pkg.NewUnencryptedClient(config.Server, config.Token)
 	if err != nil {
