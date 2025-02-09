@@ -67,7 +67,7 @@ func filterMessage(message string, skips []*regexp.Regexp) bool {
 func forward(config *config, room string, message []byte) error {
 	dbPath := filepath.Join(config.ConfigDir, "stm.db")
 	ctx := context.Background()
-	logger := zerolog.New(os.Stderr)
+	logger := zerolog.New(os.Stderr).Level(zerolog.ErrorLevel)
 	client, err := pkg.NewEncryptedClient(ctx, dbPath, config.DatabasePassword, logger)
 	if err != nil {
 		return err
