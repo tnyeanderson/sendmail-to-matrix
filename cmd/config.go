@@ -48,17 +48,6 @@ type config struct {
 	skipsRegexp            []*regexp.Regexp
 }
 
-func (c *config) writeTo(w io.Writer) error {
-	b, err := json.MarshalIndent(c, "", "  ")
-	if err != nil {
-		return err
-	}
-	if _, err := w.Write(b); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (c *config) init() error {
 	v, err := newViper(rootCmd.PersistentFlags())
 	if err != nil {
@@ -92,6 +81,17 @@ func (c *config) fromViper(v *viper.Viper) error {
 		c.skipsRegexp = append(c.skipsRegexp, r)
 	}
 
+	return nil
+}
+
+func (c *config) writeTo(w io.Writer) error {
+	b, err := json.MarshalIndent(c, "", "  ")
+	if err != nil {
+		return err
+	}
+	if _, err := w.Write(b); err != nil {
+		return err
+	}
 	return nil
 }
 
