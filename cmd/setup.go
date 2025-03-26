@@ -16,8 +16,8 @@ var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Interactive configuration utility",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		c, err := getConfig(viperConf, true)
-		if err != nil {
+		c := &config{ignoreConfigFileErrors: true}
+		if err := c.init(); err != nil {
 			return err
 		}
 

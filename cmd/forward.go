@@ -17,17 +17,12 @@ var forwardCmd = &cobra.Command{
 	Use:   "forward",
 	Short: "Read an email message from stdin and forward it to a Matrix room",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		c, err := getConfig(viperConf, false)
-		if err != nil {
+		c := &config{}
+		if err := c.init(); err != nil {
 			return err
 		}
 
-		template := c.Template
-		if template == "" {
-			template = pkg.DefaultMessageTemplate
-		}
-
-		message, err := buildMessage(os.Stdin, template, c.Preface, c.Epilogue)
+		message, err := buildMessage(os.Stdin, c.Template, c.Preface, c.Epilogue)
 		if err != nil {
 			return err
 		}

@@ -9,10 +9,10 @@ import (
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"github.com/tnyeanderson/sendmail-to-matrix/pkg"
 )
 
 const (
-	DefaultConfigDir         = "/etc/sendmail-to-matrix"
 	DefaultDeviceDisplayName = "sendmail-to-matrix"
 	DefaultServer            = "https://matrix.org"
 )
@@ -31,8 +31,6 @@ const (
 	flagDatabasePassword = "db-pass"
 )
 
-var viperConf *viper.Viper
-
 type config struct {
 	ConfigDir          string   `json:"config-dir,omitempty" mapstructure:"config-dir,omitempty"`
 	ConfigFile         string   `json:"config-file,omitempty" mapstructure:"config-file,omitempty"`
@@ -46,7 +44,8 @@ type config struct {
 	Template           string   `json:"template,omitempty" mapstructure:",omitempty"`
 	Token              string   `json:"token,omitempty" mapstructure:",omitempty"`
 
-	skipsRegexp []*regexp.Regexp
+	ignoreConfigFileErrors bool
+	skipsRegexp            []*regexp.Regexp
 }
 
 func (c *config) writeTo(w io.Writer) error {
@@ -60,30 +59,61 @@ func (c *config) writeTo(w io.Writer) error {
 	return nil
 }
 
-func getConfig(v *viper.Viper, ignoreConfigFileErrors bool) (*config, error) {
-	configFile := getConfigFilePath(v)
-	v.Set(flagConfigFile, configFile)
+func (c *config) init() error {
+	v, err := newViper(rootCmd.PersistentFlags())
+	if err != nil {
+		return err
+	}
+	return c.fromViper(v)
+}
+
+func (c *config) fromViper(v *viper.Viper) error {
+	configFile := v.GetString(flagConfigFile)
 
 	if configFile != "" {
-		if err := readConfigFile(v, configFile); err != nil && !ignoreConfigFileErrors {
-			return nil, err
+		if err := readConfigFile(v, configFile); err != nil && !c.ignoreConfigFileErrors {
+			return err
 		}
 	}
 
-	c := &config{}
 	if err := v.Unmarshal(c); err != nil {
-		return nil, err
+		return err
+	}
+
+	if c.Template == "" {
+		c.Template = pkg.DefaultMessageTemplate
 	}
 
 	for _, skip := range c.Skip {
 		r, err := regexp.Compile(skip)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		c.skipsRegexp = append(c.skipsRegexp, r)
 	}
 
-	return c, nil
+	return nil
+}
+
+func newViper(f *pflag.FlagSet) (*viper.Viper, error) {
+	v := viper.New()
+	v.SetConfigType("json")
+	if err := v.BindPFlags(f); err != nil {
+		return nil, err
+	}
+	v.SetEnvPrefix("stm")
+	v.AutomaticEnv()
+	v.SetDefault(flagConfigDir, getDefaultConfigDir())
+	v.SetDefault(flagConfigFile, getConfigFilePath(v))
+	return v, nil
+}
+
+func getDefaultConfigDir() string {
+	dir := os.Getenv("XDG_CONFIG_HOME")
+	if dir == "" {
+		dir = filepath.Join(os.Getenv("HOME"), ".config")
+	}
+	return filepath.Join(dir, "sendmail-to-matrix")
 }
 
 func getConfigFilePath(v *viper.Viper) string {
@@ -109,18 +139,4 @@ func readConfigFile(v *viper.Viper, path string) error {
 		return err
 	}
 	return nil
-}
-
-func viperConfInit(v *viper.Viper, f *pflag.FlagSet) {
-	rootFlagsInit(f)
-	v.SetConfigType("json")
-	v.BindPFlags(f)
-	v.SetEnvPrefix("stm")
-	v.AutomaticEnv()
-	v.SetDefault(flagConfigDir, DefaultConfigDir)
-}
-
-func init() {
-	viperConf = viper.New()
-	viperConfInit(viperConf, rootCmd.PersistentFlags())
 }

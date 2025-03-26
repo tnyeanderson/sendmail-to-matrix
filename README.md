@@ -66,6 +66,10 @@ chmod +x /path/to/sendmail-to-matrix
 Alternatively, use `go install` or build it yourself:
 
 ```bash
+# Ensure dependencies are installed
+sudo apt install -y libolm-dev
+
+# Install
 git clone https://github.com/tnyeanderson/sendmail-to-matrix.git
 cd sendmail-to-matrix
 CGO_ENABLED=0 go build .
