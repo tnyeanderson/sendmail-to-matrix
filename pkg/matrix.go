@@ -36,7 +36,7 @@ func GetToken(server, user, password string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	data := make(map[string]interface{})
+	data := make(map[string]any)
 	err = json.Unmarshal(b, &data)
 	if err != nil {
 		return "", err
@@ -44,7 +44,7 @@ func GetToken(server, user, password string) (string, error) {
 	if token, ok := data["access_token"].(string); ok {
 		return token, nil
 	}
-	return "", fmt.Errorf("Failed to unmarshal access_token from response")
+	return "", fmt.Errorf("failed to unmarshal access_token from response")
 }
 
 // generateTransactionID generates a 10 character random string to use as a

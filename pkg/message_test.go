@@ -176,7 +176,7 @@ func TestMessageRenderMixedHtml(t *testing.T) {
 	}
 	expected := `this should not be sanitized
 
-example of weird (stupid) proxmox url format:
+example of RFC3986 url format:
 
 <http://my.test.url/foo/bar>
 

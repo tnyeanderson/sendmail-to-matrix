@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -22,9 +23,15 @@ var forwardCmd = &cobra.Command{
 			return err
 		}
 
-		message, err := buildMessage(os.Stdin, c.Template, c.Preface, c.Epilogue)
+		// Set up tee to buffer message as we read it, so we can send the original
+		// MIME if all else fails.
+		original := new(bytes.Buffer)
+		t := io.TeeReader(os.Stdin, original)
+
+		message, err := buildMessage(t, c.Template, c.Preface, c.Epilogue)
 		if err != nil {
-			return err
+			preface := []byte("ERROR: sendmail-to-matrix couldn't parse the below MIME message:\n\n")
+			message = append(preface, original.Bytes()...)
 		}
 
 		if !filterMessage(string(message), c.skipsRegexp) {

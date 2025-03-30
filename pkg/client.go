@@ -37,7 +37,7 @@ func (c *UnencryptedClient) SendMessage(ctx context.Context, room string, messag
 		return err
 	}
 	url := fmt.Sprintf(urlFmt, c.Server, room, transactionID)
-	body := bytes.NewBuffer([]byte{})
+	body := new(bytes.Buffer)
 	enc := json.NewEncoder(body)
 	enc.SetEscapeHTML(false)
 	err = enc.Encode(matrixRequestBody{
@@ -96,7 +96,7 @@ func (c *EncryptedClient) SendMessage(ctx context.Context, room string, message 
 	}
 
 	if !c.hicli.IsLoggedIn() {
-		return fmt.Errorf("Not logged in")
+		return fmt.Errorf("not logged in")
 	}
 
 	body := &event.MessageEventContent{
