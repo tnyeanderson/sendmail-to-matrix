@@ -12,7 +12,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/Masterminds/sprig"
+	"github.com/Masterminds/sprig/v3"
 	"github.com/microcosm-cc/bluemonday"
 )
 
@@ -32,9 +32,9 @@ type Message struct {
 	Epilogue string
 }
 
-// NewMessage reads an email from an io.Reader (usually stdin) and returns a
+// NewMessageFromEmail reads an email from an io.Reader (usually stdin) and returns a
 // Message with the data.
-func NewMessage(r io.Reader) (*Message, error) {
+func NewMessageFromEmail(r io.Reader) (*Message, error) {
 	m := &Message{}
 	e, err := mail.ReadMessage(r)
 	if err != nil {

@@ -46,7 +46,7 @@ var forwardCmd = &cobra.Command{
 }
 
 func buildMessage(r io.Reader, template, preface, epilogue string) ([]byte, error) {
-	m, err := pkg.NewMessage(r)
+	m, err := pkg.NewMessageFromEmail(r)
 	if err != nil {
 		return nil, err
 	}

@@ -60,7 +60,7 @@ the epilogue`
 
 func TestMessageRenderNonMultipart(t *testing.T) {
 	f, _ := os.Open("testdata/mime-non-multipart.txt")
-	msg, err := NewMessage(f)
+	msg, err := NewMessageFromEmail(f)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -78,7 +78,7 @@ func TestMessageRenderNonMultipart(t *testing.T) {
 
 func TestMessageRenderHTML(t *testing.T) {
 	f, _ := os.Open("testdata/mime-html-only.txt")
-	msg, err := NewMessage(f)
+	msg, err := NewMessageFromEmail(f)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -96,7 +96,7 @@ func TestMessageRenderHTML(t *testing.T) {
 
 func TestMessageRenderMixedAttachment(t *testing.T) {
 	f, _ := os.Open("testdata/mime-mixed-attachment.txt")
-	msg, err := NewMessage(f)
+	msg, err := NewMessageFromEmail(f)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -114,7 +114,7 @@ the body`
 
 func TestMessageRenderAlternativeAttachment(t *testing.T) {
 	f, _ := os.Open("testdata/mime-alternative-attachment.txt")
-	msg, err := NewMessage(f)
+	msg, err := NewMessageFromEmail(f)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -131,7 +131,7 @@ func TestMessageRenderAlternativeAttachment(t *testing.T) {
 
 func TestMessageRenderAlternative(t *testing.T) {
 	f, _ := os.Open("testdata/mime-alternative-datamotion.txt")
-	msg, err := NewMessage(f)
+	msg, err := NewMessageFromEmail(f)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -149,7 +149,7 @@ This is the body text of a sample message.`
 
 func TestMessageRenderMixedMS(t *testing.T) {
 	f, _ := os.Open("testdata/mime-alternative-html.txt")
-	msg, err := NewMessage(f)
+	msg, err := NewMessageFromEmail(f)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -166,7 +166,7 @@ func TestMessageRenderMixedMS(t *testing.T) {
 
 func TestMessageRenderMixedHtml(t *testing.T) {
 	f, _ := os.Open("testdata/mime-mixed-html.txt")
-	msg, err := NewMessage(f)
+	msg, err := NewMessageFromEmail(f)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -189,7 +189,7 @@ this should be sanitized`
 
 func TestMessageRenderMixed2(t *testing.T) {
 	f, _ := os.Open("testdata/mime-mixed-2.txt")
-	msg, err := NewMessage(f)
+	msg, err := NewMessageFromEmail(f)
 	if err != nil {
 		t.Fatal(err.Error())
 	}

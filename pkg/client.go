@@ -5,7 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/rs/zerolog"
 	"go.mau.fi/util/dbutil"
@@ -108,7 +111,9 @@ func (c *EncryptedClient) SendMessage(ctx context.Context, room string, message 
 		return err
 	}
 
-	c.waitForSync(ctx)
+	if err := c.waitForSync(ctx); err != nil {
+		return err
+	}
 	c.hicli.Stop()
 	return nil
 }
@@ -124,16 +129,22 @@ func (c *EncryptedClient) LoginAndVerify(ctx context.Context, server, user, pass
 	if err := c.hicli.LoginAndVerify(ctx, server, user, password, recoveryCode); err != nil {
 		return err
 	}
-	c.waitForSync(ctx)
+	if err := c.waitForSync(ctx); err != nil {
+		return err
+	}
 	c.hicli.Stop()
 	return nil
 }
 
-func (c *EncryptedClient) waitForSync(ctx context.Context) {
+func (c *EncryptedClient) waitForSync(ctx context.Context) error {
 	*c.synced = false
 	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if *c.synced {
 			break
 		}
 	}
+	return nil
 }
