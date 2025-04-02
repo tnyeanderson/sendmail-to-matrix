@@ -113,7 +113,7 @@ func getDefaultConfigDir() string {
 	if dir == "" {
 		dir = filepath.Join(os.Getenv("HOME"), ".config")
 	}
-	return filepath.Join(dir, "sendmail-to-matrix")
+	return filepath.Join(dir, "sendmail-to-matrix/default")
 }
 
 func getConfigFilePath(v *viper.Viper) string {
