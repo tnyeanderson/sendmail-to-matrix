@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/tnyeanderson/sendmail-to-matrix/pkg"
 )
@@ -23,36 +22,54 @@ var forwardCmd = &cobra.Command{
 			return err
 		}
 
-		// Set up tee to buffer message as we read it, so we can send the original
-		// MIME if all else fails.
-		original := new(bytes.Buffer)
-		t := io.TeeReader(os.Stdin, original)
-
-		message, err := buildMessage(t, c.Template, c.Preface, c.Epilogue)
-		if err != nil {
-			preface := []byte("ERROR: sendmail-to-matrix couldn't parse the below MIME message:\n\n")
-			message = append(preface, original.Bytes()...)
-		}
-
-		if !filterMessage(string(message), c.skipsRegexp) {
-			fmt.Println("forwarding skipped due to filters")
-		}
-
-		if c.EncryptionDisabled {
-			return forwardWithoutEncryption(c, c.Room, message)
-		}
-		return forward(c, c.Room, message)
+		return forward(c)
 	},
 }
 
-func buildMessage(r io.Reader, template, preface, epilogue string) ([]byte, error) {
+func forward(c *config) error {
+	// Set up tee to buffer message as we read it, so we can send the original
+	// MIME if all else fails.
+	originalEmail := new(bytes.Buffer)
+	t := io.TeeReader(os.Stdin, originalEmail)
+
+	message, err := buildMessage(t, c.Preface, c.Epilogue)
+	if err != nil {
+		// Read any unread data into the originalEmail tee
+		if _, err := io.ReadAll(t); err != nil {
+			return err
+		}
+		// If we couldn't build the message, upload the full email as a file.
+		text := fmt.Sprintf("ERROR: sendmail-to-matrix failed to parse the attached email due to the following error: %s", err.Error())
+		attachments := []pkg.Attachment{
+			{
+				Content:     originalEmail.Bytes(),
+				ContentType: "message/rfc822",
+				FileName:    "message.eml",
+			},
+		}
+		return sendToMatrix(c, c.RoomID, []byte(text), attachments)
+	}
+
+	text, err := message.Render([]byte(c.Template))
+	if err != nil {
+		return err
+	}
+
+	if !filterMessage(string(text), c.skipsRegexp) {
+		fmt.Println("forwarding skipped due to filters")
+	}
+
+	return sendToMatrix(c, c.RoomID, text, message.Attachments)
+}
+
+func buildMessage(r io.Reader, preface, epilogue string) (*pkg.Message, error) {
 	m, err := pkg.NewMessageFromEmail(r)
 	if err != nil {
 		return nil, err
 	}
 	m.Preface = preface
 	m.Epilogue = epilogue
-	return m.Render([]byte(template))
+	return m, nil
 }
 
 // filterMessage returns true if the message should be forwarded to matrix and
@@ -66,24 +83,37 @@ func filterMessage(message string, skips []*regexp.Regexp) bool {
 	return true
 }
 
-func forward(config *config, room string, message []byte) error {
-	dbPath := filepath.Join(config.ConfigDir, "stm.db")
-	ctx := context.Background()
-	logger := zerolog.New(os.Stderr).Level(zerolog.ErrorLevel)
-	client, err := pkg.NewEncryptedClient(ctx, dbPath, config.DatabasePassword, logger)
-	if err != nil {
-		return err
+func newClientFromConfig(c *config) (pkg.Client, error) {
+	if c.EncryptionDisabled {
+		return pkg.NewUnencryptedClient(c.Server, c.UserID, c.Token)
 	}
-	return client.SendMessage(ctx, room, message)
+
+	// Encrypted messaging
+	databasePath := filepath.Join(c.ConfigDir, "stm.db")
+	return pkg.NewEncryptedClient(c.UserID, databasePath, c.DatabasePassword)
 }
 
-func forwardWithoutEncryption(config *config, room string, message []byte) error {
+func sendToMatrix(conf *config, room string, text []byte, attachments []pkg.Attachment) error {
 	ctx := context.Background()
-	client, err := pkg.NewUnencryptedClient(config.Server, config.Token)
+	client, err := newClientFromConfig(conf)
 	if err != nil {
 		return err
 	}
-	return client.SendMessage(ctx, room, message)
+	defer client.Close()
+
+	if err := client.SendText(ctx, room, text); err != nil {
+		return err
+	}
+
+	if conf.IncludeAttachments {
+		for _, a := range attachments {
+			if err := client.SendAttachment(ctx, room, a); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func init() {

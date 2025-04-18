@@ -1,150 +1,184 @@
 package pkg
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
-	"strings"
+	"os"
+	"runtime"
 
 	"github.com/rs/zerolog"
+	"go.mau.fi/gomuks/pkg/hicli"
 	"go.mau.fi/util/dbutil"
+	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
-	"maunium.net/go/mautrix/hicli"
 	"maunium.net/go/mautrix/id"
 
 	_ "github.com/glebarez/go-sqlite"
 )
 
-// UnencryptedClient sends unencrypted messages to a matrix room.
-type UnencryptedClient struct {
-	Server string
-	Token  string
+// Client provides an interface for an underlying Matrix client, which could be
+// encrypted or unencrypted.
+type Client interface {
+	// Close will gracefully close the connection and client. It does not log
+	// out. Trying to use the Client after calling this may not work. You must
+	// run this when you are done with your Client (or before your program
+	// exits).
+	Close() error
+
+	// SendAttachment will upload the attachment and send it to a room.
+	SendAttachment(ctx context.Context, room string, attachment Attachment) error
+
+	// SendText will send a text-based message to a room.
+	SendText(ctx context.Context, room string, text []byte) error
 }
 
-func NewUnencryptedClient(server, token string) (*UnencryptedClient, error) {
-	return &UnencryptedClient{
-		Server: server,
-		Token:  token,
-	}, nil
-}
-
-// SendMessage sends an unencrypted message to a matrix room.
-func (c *UnencryptedClient) SendMessage(ctx context.Context, room string, message []byte) error {
-	urlFmt := "%s/_matrix/client/v3/rooms/%s/send/m.room.message/%s"
-	transactionID, err := generateTransactionID()
+// NewUnencryptedClient returns a Client that provides unencrypted messaging.
+func NewUnencryptedClient(server, userID, token string) (Client, error) {
+	mautrixClient, err := mautrix.NewClient(server, id.UserID(userID), token)
 	if err != nil {
+		return nil, err
+	}
+	return &unencryptedClient{mautrixClient}, nil
+}
+
+// NewEncryptedClient returns a Client that provides encrypted messaging. This
+// function expects that the state database and configuration is already
+// present on disk, so make sure that [SetupNewEncryptedClientUsingRecoveryKey]
+// has succeeded previously before trying to use this function to utilize that
+// Client.
+func NewEncryptedClient(userID, databasePath, databasePassword string) (Client, error) {
+	return newEncryptedClient(userID, databasePath, databasePassword)
+}
+
+// unencryptedClient is a [Client] which uses an access token and a
+// [mautrix.Client] to provide unencrypted messaging.
+type unencryptedClient struct {
+	mautrixClient *mautrix.Client
+}
+
+func (c *unencryptedClient) Close() error {
+	// Only needed for encrypted clients
+	return nil
+}
+
+func (c *unencryptedClient) SendText(ctx context.Context, room string, text []byte) error {
+	if _, err := c.mautrixClient.SendText(ctx, id.RoomID(room), string(text)); err != nil {
 		return err
 	}
-	url := fmt.Sprintf(urlFmt, c.Server, room, transactionID)
-	body := new(bytes.Buffer)
-	enc := json.NewEncoder(body)
-	enc.SetEscapeHTML(false)
-	err = enc.Encode(matrixRequestBody{
-		Body:    string(message),
-		Msgtype: "m.text",
-	})
-	if err != nil {
-		return err
-	}
-	req, err := http.NewRequest(http.MethodPut, url, body)
-	if err != nil {
-		return err
-	}
-	q := req.URL.Query()
-	q.Set("access_token", c.Token)
-	req.URL.RawQuery = q.Encode()
-	client := &http.Client{}
-	_, err = client.Do(req)
-	return err
+	return nil
 }
 
-// EncryptedClient sends encrypted messages to a matrix room.
-type EncryptedClient struct {
-	hicli  *hicli.HiClient
-	synced *bool
+func (c *unencryptedClient) SendAttachment(ctx context.Context, room string, attachment Attachment) error {
+	return sendAttachment(ctx, c.mautrixClient, room, attachment)
 }
 
-func NewEncryptedClient(ctx context.Context, dbPath string, picklePass string, logger zerolog.Logger) (*EncryptedClient, error) {
-	c := &EncryptedClient{}
-	rawDB, err := dbutil.NewWithDialect(dbPath, "sqlite")
+// encryptedClient is a [Client] that uses a [hicli.HiClient] to provide
+// encrypted messaging.
+type encryptedClient struct {
+	hiClient *hicli.HiClient
+
+	// synced is used to communicate SyncComplete events from hicli
+	synced chan bool
+}
+
+func newEncryptedClient(userID, databasePath, databasePassword string) (*encryptedClient, error) {
+	c := &encryptedClient{
+		synced: make(chan bool),
+	}
+	rawDB, err := dbutil.NewWithDialect(databasePath, "sqlite")
 	if err != nil {
 		return nil, err
 	}
 
-	s := false
-	c.synced = &s
-	c.hicli = hicli.New(rawDB, nil, logger, []byte(picklePass), func(a any) {
+	logger := zerolog.New(os.Stderr).Level(zerolog.ErrorLevel)
+	eventCallback := func(a any) {
 		switch a.(type) {
 		case *hicli.SyncComplete:
-			*c.synced = true
+			c.synced <- true
 		}
-	})
+	}
+
+	c.hiClient = hicli.New(rawDB, nil, logger, []byte(databasePassword), eventCallback)
+
+	if err := c.hiClient.Start(context.Background(), id.UserID(userID), nil); err != nil {
+		return nil, err
+	}
+
+	runtime.AddCleanup(c, func(_ bool) { c.Close() }, true)
+
+	if !c.hiClient.IsLoggedIn() {
+		return nil, fmt.Errorf("encrypted client is not logged in")
+	}
 
 	return c, nil
 }
 
-// SendMessage sends an encrypted message to a matrix room.
-func (c *EncryptedClient) SendMessage(ctx context.Context, room string, message []byte) error {
-	userID, err := c.hicli.DB.Account.GetFirstUserID(ctx)
-	if err != nil {
-		return err
+func (c *encryptedClient) Close() error {
+	if c.hiClient != nil {
+		c.hiClient.Stop()
 	}
+	return nil
+}
 
-	if err := c.hicli.Start(ctx, userID, nil); err != nil {
-		return err
-	}
-
-	if !c.hicli.IsLoggedIn() {
-		return fmt.Errorf("not logged in")
-	}
-
+func (c *encryptedClient) SendText(ctx context.Context, room string, message []byte) error {
 	body := &event.MessageEventContent{
 		Body:    string(message),
 		MsgType: event.MsgText,
 	}
 
-	if _, err := c.hicli.Send(ctx, id.RoomID(room), event.EventMessage, body); err != nil {
+	if _, err := c.hiClient.Send(ctx, id.RoomID(room), event.EventMessage, body, false, true); err != nil {
 		return err
 	}
 
-	if err := c.waitForSync(ctx); err != nil {
-		return err
-	}
-	c.hicli.Stop()
+	c.waitForSync()
 	return nil
 }
 
-// LoginAndVerify authenticates a user and performs device verification,
-// allowing encrypted messages. It should only need to be run once to during
-// initial setup.
-func (c *EncryptedClient) LoginAndVerify(ctx context.Context, server, user, password, recoveryCode, deviceName string) error {
+func (c *encryptedClient) SendAttachment(ctx context.Context, room string, attachment Attachment) error {
+	return sendAttachment(ctx, c.hiClient.Client, room, attachment)
+}
+
+func (c *encryptedClient) waitForSync() {
+	// TODO: This seems to sometimes cause infinite hangs after all parts have
+	// been sent. Perhaps need a more reliable way to trigger a sync, wait for
+	// it, then return.
+	<-c.synced
+}
+
+// SetupNewEncryptedClientUsingRecoveryKey performs login and device
+// verification, then return the Client for use. The state database is saved to
+// disk, and can be loaded later using [NewEncryptedClient].
+func SetupNewEncryptedClientUsingRecoveryKey(
+	ctx context.Context,
+	server, user, password, recoveryCode,
+	databasePath, databasePassword, deviceName string,
+) (Client, error) {
+	c, err := newEncryptedClient(user, databasePath, databasePassword)
+	if err != nil {
+		return nil, err
+	}
 	hicli.InitialDeviceDisplayName = deviceName
-	if err := c.hicli.Start(ctx, id.UserID(user), nil); err != nil {
-		return err
+	if err := c.hiClient.LoginAndVerify(ctx, server, user, password, recoveryCode); err != nil {
+		return nil, err
 	}
-	if err := c.hicli.LoginAndVerify(ctx, server, user, password, recoveryCode); err != nil {
-		return err
-	}
-	if err := c.waitForSync(ctx); err != nil {
-		return err
-	}
-	c.hicli.Stop()
-	return nil
+	c.waitForSync()
+	return c, nil
 }
 
-func (c *EncryptedClient) waitForSync(ctx context.Context) error {
-	*c.synced = false
-	for {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if *c.synced {
-			break
-		}
+func sendAttachment(ctx context.Context, mautrixClient *mautrix.Client, room string, attachment Attachment) error {
+	uploadRes, err := mautrixClient.UploadBytes(ctx, attachment.Content, attachment.ContentType)
+	if err != nil {
+		return err
 	}
-	return nil
+	fileName := attachment.FileName
+	if fileName == "" {
+		fileName = "attachment"
+	}
+	_, err = mautrixClient.SendMessageEvent(ctx, id.RoomID(room), event.EventMessage, &event.MessageEventContent{
+		Body:    fileName,
+		MsgType: event.MsgImage,
+		URL:     uploadRes.ContentURI.CUString(),
+		Info:    &event.FileInfo{MimeType: attachment.ContentType},
+	})
+	return err
 }

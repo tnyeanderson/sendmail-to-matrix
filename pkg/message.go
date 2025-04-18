@@ -2,13 +2,14 @@ package pkg
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"html"
 	"io"
 	"mime"
 	"mime/multipart"
+	"mime/quotedprintable"
 	"net/mail"
-	"regexp"
 	"strings"
 	"text/template"
 
@@ -24,12 +25,20 @@ const DefaultMessageTemplate = `
 {{- if .Epilogue }}{{ println .Epilogue }}{{ end -}}
 `
 
+// Attachment is an image or other file attachment.
+type Attachment struct {
+	Content     []byte
+	ContentType string
+	FileName    string
+}
+
 // Message represents a matrix message.
 type Message struct {
-	Subject  string
-	Body     string
-	Preface  string
-	Epilogue string
+	Subject     string
+	Body        string
+	Preface     string
+	Epilogue    string
+	Attachments []Attachment
 }
 
 // NewMessageFromEmail reads an email from an io.Reader (usually stdin) and returns a
@@ -42,11 +51,12 @@ func NewMessageFromEmail(r io.Reader) (*Message, error) {
 	}
 	m.Subject = e.Header.Get("Subject")
 
-	body, err := parseBody(e)
+	body, attachments, err := parseBody(e)
 	if err != nil {
 		return nil, err
 	}
-	m.Body = body
+	m.Body = string(body)
+	m.Attachments = attachments
 
 	return m, nil
 }
@@ -71,57 +81,49 @@ func (m *Message) Render(templateText []byte) ([]byte, error) {
 	return bytes.TrimSpace(out.Bytes()), nil
 }
 
-func parseBody(m *mail.Message) (string, error) {
+// parseBody will read the body from a mail.Message and returns the textual
+// message content and any attachments, or an error if one is encountered.
+func parseBody(m *mail.Message) ([]byte, []Attachment, error) {
 	messageType, params, err := getMessageType(m)
 	if err != nil {
-		return "", err
+		return nil, nil, err
 	}
-	if strings.HasPrefix(messageType, "multipart/") {
-		boundary := params["boundary"]
-		if boundary != "" {
-			content, err := parseMultipart(m, messageType, boundary)
-			if err == nil {
-				return string(content), nil
-			}
-		}
+
+	if strings.HasPrefix(messageType, "multipart/") && params["boundary"] == "" {
+		return nil, nil, fmt.Errorf("boundary parameter required for multipart message")
 	}
+
+	switch messageType {
+	case "multipart/alternative":
+		return readAlternativeParts(m, params["boundary"])
+	case "multipart/mixed":
+		return readMixedParts(m, params["boundary"])
+	}
+
 	b, err := io.ReadAll(m.Body)
 	if err != nil {
-		return "", err
+		return nil, nil, err
 	}
-	return string(b), nil
-}
 
-func removeHTMLTags(input []byte) []byte {
-	policy := bluemonday.StrictPolicy()
-	s := policy.Sanitize(string(input))
-	s = html.UnescapeString(s)
-	s = fixWhitespace(s)
-	return []byte(s)
-}
-
-func fixWhitespace(message string) string {
-	re := regexp.MustCompile("\n\n+")
-	return re.ReplaceAllLiteralString(message, "\n\n")
-}
-
-func parseMultipart(m *mail.Message, messageType, boundary string) ([]byte, error) {
-	mr := multipart.NewReader(m.Body, boundary)
-	if messageType == "multipart/alternative" {
-		return readAlternativeParts(mr)
+	// Send as text
+	if strings.HasPrefix(messageType, "text/") {
+		return b, nil, nil
 	}
-	if messageType == "multipart/mixed" {
-		return readMixedParts(mr)
+
+	// Send as attachment
+	a := Attachment{
+		ContentType: messageType,
+		Content:     b,
 	}
-	return nil, fmt.Errorf("not a recognized multipart message")
+	return nil, []Attachment{a}, nil
 }
 
 // readAlternativeParts returns the content contained in the alternative parts.
 // Only text/plain and text/html are recognized. In defiance of MIME (RFC2046),
 // text/plain is preferred.
-func readAlternativeParts(r *multipart.Reader) ([]byte, error) {
-	parts := map[string][]byte{}
-	var out []byte
+func readAlternativeParts(m *mail.Message, boundary string) ([]byte, []Attachment, error) {
+	var txt []byte
+	r := multipart.NewReader(m.Body, boundary)
 	for {
 		// NextPart() advances the reader, so if we need the content, we need to
 		// read it before a subsequent call to NextPart.
@@ -129,73 +131,124 @@ func readAlternativeParts(r *multipart.Reader) ([]byte, error) {
 		if err != nil {
 			break
 		}
-		mimeType, _, err := getPartType(part)
+		mimeType, _, err := getPartContentType(part)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
+		}
+
+		decoder := newPartDecoder(part)
+
+		if mimeType == "text/html" {
+			decoder = newHTMLSanitizer(decoder)
+			b, err := io.ReadAll(decoder)
+			if err != nil {
+				return nil, nil, err
+			}
+			txt = b
 		}
 
 		if mimeType == "text/plain" {
-			b, err := io.ReadAll(part)
+			b, err := io.ReadAll(decoder)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			out = b
-			continue
-		}
-
-		// If we already have a text/plain, ignore other MIME types.
-		if _, ok := parts["text/plain"]; ok {
-			continue
-		}
-
-		if mimeType == "text/html" {
-			b, err := io.ReadAll(part)
-			if err != nil {
-				return nil, err
-			}
-			out = removeHTMLTags(b)
+			txt = b
+			break
 		}
 	}
 
-	if out == nil {
-		return nil, fmt.Errorf("unsupported alternative part")
+	if txt == nil {
+		return nil, nil, fmt.Errorf("unsupported alternative part")
 	}
 
-	return out, nil
+	return txt, nil, nil
 }
 
-func readMixedParts(r *multipart.Reader) ([]byte, error) {
-	out := new(bytes.Buffer)
+// readMixedParts returns the textual content and any attachments contained in
+// the mixed parts. Only text/plain and text/html are recognized for the
+// textual portion. In defiance of MIME (RFC2046), text/plain is preferred. An
+// error is returned if one is encountered.
+func readMixedParts(m *mail.Message, boundary string) ([]byte, []Attachment, error) {
+	txt := new(bytes.Buffer)
+	attachments := []Attachment{}
+	r := multipart.NewReader(m.Body, boundary)
 	for {
+		// NextPart() advances the reader, so if we need the content, we need to
+		// read it before a subsequent call to NextPart.
 		p, err := r.NextPart()
 		if err != nil {
 			break
 		}
-		mimeType, _, err := getPartType(p)
+
+		disposition, dispositionParams, err := getPartDisposition(p)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		// Only text parts are recognized.
-		// TODO: Handle attachments
+		mimeType, _, err := getPartContentType(p)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		decoder := newPartDecoder(p)
+
+		if disposition == "attachment" {
+			b, err := io.ReadAll(decoder)
+			if err != nil {
+				return nil, nil, err
+			}
+			a := Attachment{
+				ContentType: mimeType,
+				Content:     b,
+				FileName:    fmt.Sprint(dispositionParams["filename"]),
+			}
+			attachments = append(attachments, a)
+			continue
+		}
+
 		if strings.HasPrefix(mimeType, "text/") {
 			// Add newline between parts
-			if out.Len() > 0 {
-				out.Write([]byte("\n"))
+			if txt.Len() > 0 {
+				txt.Write([]byte("\n"))
 			}
 			if mimeType == "text/html" {
-				b, err := io.ReadAll(p)
-				if err != nil {
-					return nil, err
-				}
-				out.Write(removeHTMLTags(b))
-				continue
+				decoder = newHTMLSanitizer(decoder)
 			}
-			if _, err := io.Copy(out, p); err != nil {
-				return nil, err
+			decoder = newWhitespaceFixer(decoder)
+			if _, err := io.Copy(txt, decoder); err != nil {
+				return nil, nil, err
 			}
 		}
 	}
-	return out.Bytes(), nil
+	return txt.Bytes(), attachments, nil
+}
+
+// newHTMLSanitizer returns an io.Reader which emits the contents of r, with
+// any HTML sanitized. The sanitized result is buffered at creation time, since
+// r will be completely read immediately.
+func newHTMLSanitizer(r io.Reader) io.Reader {
+	policy := bluemonday.StrictPolicy()
+	buf := policy.SanitizeReader(r)
+	s := html.UnescapeString(buf.String())
+	return newWhitespaceFixer(strings.NewReader(s))
+}
+
+// newWhitespaceFixer returns an io.Reader which emits the contents of r, but
+// only allows a maximum of two newline characters in a row.
+func newWhitespaceFixer(r io.Reader) io.Reader {
+	return newRepeatRemover(r, '\n', 2)
+}
+
+// newPartDecoder returns an io.Reader which will provide the contents of p
+// according to its content encoding.
+func newPartDecoder(p *multipart.Part) io.Reader {
+	switch getPartContentEncoding(p) {
+	case "base64":
+		return base64.NewDecoder(base64.StdEncoding, p)
+	case "quoted-printable":
+		return quotedprintable.NewReader(p)
+	}
+	// No decoding necessary
+	return p
 }
 
 // getMessageType returns the top-level media type and parameters. If not set,
@@ -208,17 +261,29 @@ func getMessageType(m *mail.Message) (contentType string, params map[string]stri
 	return "text/plain", map[string]string{"charset": "us-ascii"}, nil
 }
 
-// getPartType returns the content type of the part. If not set, the default
-// according to RFC2045 5.2 (text/plain) is returned.
-func getPartType(p *multipart.Part) (contentType string, params map[string]string, err error) {
-	if v := p.Header["Content-Disposition"]; len(v) > 0 {
-		contentType, params, err = mime.ParseMediaType(v[0])
-		if contentType == "attachment" {
-			return
-		}
+// getPartContentEncoding returns the content encoding of the part. If not set, the
+// default according to RFC2045 6.1 (7bit) is returned.
+func getPartContentEncoding(p *multipart.Part) string {
+	if v := p.Header["Content-Transfer-Encoding"]; len(v) > 0 {
+		return v[0]
 	}
+	return "7bit"
+}
+
+// getPartContentType returns the content type of the part. If not set, the
+// default according to RFC2045 5.2 (text/plain) is returned.
+func getPartContentType(p *multipart.Part) (contentType string, params map[string]string, err error) {
 	if v := p.Header["Content-Type"]; len(v) > 0 {
 		return mime.ParseMediaType(v[0])
 	}
 	return "text/plain", map[string]string{"charset": "us-ascii"}, nil
+}
+
+// getPartDisposition returns the content disposition of the part. If not set,
+// the default according to RFC626 4.2 (inline) is returned.
+func getPartDisposition(p *multipart.Part) (contentType string, params map[string]string, err error) {
+	if v := p.Header["Content-Disposition"]; len(v) > 0 {
+		return mime.ParseMediaType(v[0])
+	}
+	return "inline", map[string]string{}, nil
 }

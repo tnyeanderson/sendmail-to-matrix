@@ -14,21 +14,22 @@ import (
 
 const (
 	DefaultDeviceDisplayName = "sendmail-to-matrix"
-	DefaultServer            = "https://matrix.org"
 )
 
 const (
-	flagConfigDir        = "config-dir"
-	flagConfigFile       = "config-file"
-	flagNoEncrypt        = "no-encrypt"
-	flagRoom             = "room"
-	flagServer           = "server"
-	flagPreface          = "preface"
-	flagEpilogue         = "epilogue"
-	flagTemplate         = "template"
-	flagSkip             = "skip"
-	flagToken            = "token"
-	flagDatabasePassword = "db-pass"
+	flagConfigDir          = "config-dir"
+	flagConfigFile         = "config-file"
+	flagDatabasePassword   = "db-pass"
+	flagEpilogue           = "epilogue"
+	flagIncludeAttachments = "include-attachments"
+	flagNoEncrypt          = "no-encrypt"
+	flagPreface            = "preface"
+	flagRoom               = "room"
+	flagServer             = "server"
+	flagSkip               = "skip"
+	flagTemplate           = "template"
+	flagToken              = "token"
+	flagUserID             = "user"
 )
 
 type config struct {
@@ -37,12 +38,14 @@ type config struct {
 	DatabasePassword   string   `json:"db-pass,omitempty" mapstructure:"db-pass,omitempty"`
 	EncryptionDisabled bool     `json:"no-encrypt,omitempty" mapstructure:"no-encrypt,omitempty"`
 	Epilogue           string   `json:"epilogue,omitempty" mapstructure:",omitempty"`
+	IncludeAttachments bool     `json:"include-attachments,omitempty" mapstructure:"include-attachments,omitempty"`
 	Preface            string   `json:"preface,omitempty" mapstructure:",omitempty"`
-	Room               string   `json:"room,omitempty" mapstructure:",omitempty"`
+	RoomID             string   `json:"room,omitempty" mapstructure:"room,omitempty"`
 	Server             string   `json:"server,omitempty" mapstructure:",omitempty"`
 	Skip               []string `json:"skip,omitempty" mapstructure:",omitempty"`
 	Template           string   `json:"template,omitempty" mapstructure:",omitempty"`
 	Token              string   `json:"token,omitempty" mapstructure:",omitempty"`
+	UserID             string   `json:"user,omitempty" mapstructure:"user,omitempty"`
 
 	ignoreConfigFileErrors bool
 	skipsRegexp            []*regexp.Regexp
@@ -57,7 +60,7 @@ func (c *config) init() error {
 }
 
 func (c *config) fromViper(v *viper.Viper) error {
-	configFile := v.GetString(flagConfigFile)
+	configFile := getConfigFilePath(v)
 
 	if configFile != "" {
 		if err := readConfigFile(v, configFile); err != nil && !c.ignoreConfigFileErrors {
