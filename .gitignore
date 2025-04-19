@@ -1,5 +1,7 @@
 ### Project ###
+config.json
 sendmail-to-matrix
+stm.db*
 
 ### Github ###
 

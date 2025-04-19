@@ -1,6 +1,0 @@
-{
-  "server": "https://matrix.org",
-  "token": "<your_access_token>",
-  "room": "!myroomid:matrix.org",
-  "preface": "OPTIONAL: This text will precede any messages sent. It appears on its own line above the actual message. If you do not want this, just delete it or set it to an empty string."
-}

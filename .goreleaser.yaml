@@ -13,6 +13,8 @@ builds:
       - linux
       - windows
       - darwin
+    tags:
+      - goolm
 
 archives:
   - format: tar.gz
